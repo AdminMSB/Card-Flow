@@ -3,7 +3,7 @@ import {
   clusterTextItemsIntoLines,
   extractRowsFromLines,
   type PositionedTextItem,
-} from '@/lib/parsers/pdf';
+} from '@/lib/parsers/pdf-transactions';
 
 /** Monta os itens de texto posicionados de uma linha de transação fictícia, no layout de
  * fatura suportado: data (x=18.42), descrição (x=65.93), local (x=219.7), valor em R$
