@@ -83,6 +83,9 @@ export default async function ComprasPage({
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead>Estabelecimento</TableHead>
+                <TableHead>Fornecedor</TableHead>
+                <TableHead>Requisição</TableHead>
+                <TableHead>OC</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Centro de custo</TableHead>
                 <TableHead>Valor</TableHead>
@@ -96,6 +99,9 @@ export default async function ComprasPage({
                 <TableRow key={purchase.id}>
                   <TableCell>{formatDate(purchase.purchase_date)}</TableCell>
                   <TableCell>{purchase.merchant_name}</TableCell>
+                  <TableCell>{purchase.supplier_name ?? '—'}</TableCell>
+                  <TableCell>{purchase.requisition_number ?? '—'}</TableCell>
+                  <TableCell>{purchase.purchase_order_code ?? '—'}</TableCell>
                   <TableCell>{purchase.category_id ? categoryMap.get(purchase.category_id) ?? '—' : '—'}</TableCell>
                   <TableCell>
                     {purchase.cost_center_id ? costCenterMap.get(purchase.cost_center_id) ?? '—' : '—'}
@@ -134,7 +140,7 @@ export default async function ComprasPage({
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center text-muted-foreground">
                     Nenhuma compra registrada ainda.
                   </TableCell>
                 </TableRow>

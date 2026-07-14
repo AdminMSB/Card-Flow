@@ -21,12 +21,22 @@ interface PurchaseRow {
   user_id: string;
   category_id: string | null;
   cost_center_id: string | null;
+  requisition_number: string | null;
+  supplier_name: string | null;
+  supplier_cnpj: string | null;
+  invoice_document_number: string | null;
+  purchase_order_code: string | null;
 }
 
 interface ReportLine {
   data: string;
   solicitante: string;
   estabelecimento: string;
+  fornecedor: string;
+  cnpjFornecedor: string;
+  requisicao: string;
+  ordemCompra: string;
+  notaFiscal: string;
   categoria: string;
   centroCusto: string;
   valorCents: number;
@@ -52,7 +62,9 @@ async function fetchAllMatchingPurchases(
 
   let query = supabase
     .from('purchases')
-    .select('id, purchase_date, amount_cents, merchant_name, status, user_id, category_id, cost_center_id');
+    .select(
+      'id, purchase_date, amount_cents, merchant_name, status, user_id, category_id, cost_center_id, requisition_number, supplier_name, supplier_cnpj, invoice_document_number, purchase_order_code',
+    );
 
   if (filters.de) query = query.gte('purchase_date', filters.de);
   if (filters.ate) query = query.lte('purchase_date', filters.ate);
@@ -97,6 +109,11 @@ async function buildReportLines(
     data: formatDate(row.purchase_date),
     solicitante: fullNameById.get(row.user_id) ?? '—',
     estabelecimento: row.merchant_name,
+    fornecedor: row.supplier_name ?? '—',
+    cnpjFornecedor: row.supplier_cnpj ?? '—',
+    requisicao: row.requisition_number ?? '—',
+    ordemCompra: row.purchase_order_code ?? '—',
+    notaFiscal: row.invoice_document_number ?? '—',
     categoria: row.category_id ? categoryNameById.get(row.category_id) ?? '—' : '—',
     centroCusto: row.cost_center_id ? costCenterNameById.get(row.cost_center_id) ?? '—' : '—',
     valorCents: row.amount_cents,
@@ -112,6 +129,11 @@ async function buildExcelResponse(lines: ReportLine[]) {
     { header: 'Data', key: 'data', width: 12 },
     { header: 'Solicitante', key: 'solicitante', width: 28 },
     { header: 'Estabelecimento', key: 'estabelecimento', width: 28 },
+    { header: 'Fornecedor', key: 'fornecedor', width: 28 },
+    { header: 'CNPJ Fornecedor', key: 'cnpjFornecedor', width: 20 },
+    { header: 'Requisição', key: 'requisicao', width: 14 },
+    { header: 'Nº OC', key: 'ordemCompra', width: 14 },
+    { header: 'NF/Fatura/Boleto', key: 'notaFiscal', width: 18 },
     { header: 'Categoria', key: 'categoria', width: 20 },
     { header: 'Centro de Custo', key: 'centroCusto', width: 24 },
     { header: 'Valor', key: 'valor', width: 16 },
@@ -127,6 +149,11 @@ async function buildExcelResponse(lines: ReportLine[]) {
         data: line.data,
         solicitante: line.solicitante,
         estabelecimento: line.estabelecimento,
+        fornecedor: line.fornecedor,
+        cnpjFornecedor: line.cnpjFornecedor,
+        requisicao: line.requisicao,
+        ordemCompra: line.ordemCompra,
+        notaFiscal: line.notaFiscal,
         categoria: line.categoria,
         centroCusto: line.centroCusto,
         valor: line.valorCents / 100,
@@ -140,28 +167,46 @@ async function buildExcelResponse(lines: ReportLine[]) {
   return workbook.xlsx.writeBuffer();
 }
 
-const PAGE_WIDTH = 595.28; // A4 em pontos
-const PAGE_HEIGHT = 841.89;
+// A4 paisagem (mais larga) para caber as colunas extras vindas da planilha original.
+const PAGE_WIDTH = 841.89;
+const PAGE_HEIGHT = 595.28;
 const MARGIN = 40;
 const LINE_HEIGHT = 16;
 
-const COLUMN_ORDER = ['data', 'solicitante', 'estabelecimento', 'categoria', 'centroCusto', 'valor', 'status'] as const;
+const COLUMN_ORDER = [
+  'data',
+  'solicitante',
+  'estabelecimento',
+  'fornecedor',
+  'requisicao',
+  'ordemCompra',
+  'categoria',
+  'centroCusto',
+  'valor',
+  'status',
+] as const;
 type ColumnKey = (typeof COLUMN_ORDER)[number];
 
 const COLUMN_X: Record<ColumnKey, number> = {
   data: MARGIN,
-  solicitante: MARGIN + 50,
-  estabelecimento: MARGIN + 140,
-  categoria: MARGIN + 250,
-  centroCusto: MARGIN + 325,
-  valor: MARGIN + 400,
-  status: MARGIN + 460,
+  solicitante: MARGIN + 45,
+  estabelecimento: MARGIN + 155,
+  fornecedor: MARGIN + 285,
+  requisicao: MARGIN + 415,
+  ordemCompra: MARGIN + 465,
+  categoria: MARGIN + 515,
+  centroCusto: MARGIN + 585,
+  valor: MARGIN + 655,
+  status: MARGIN + 715,
 };
 
 const COLUMN_LABEL: Record<ColumnKey, string> = {
   data: 'Data',
   solicitante: 'Solicitante',
   estabelecimento: 'Estabelecimento',
+  fornecedor: 'Fornecedor',
+  requisicao: 'Requis.',
+  ordemCompra: 'OC',
   categoria: 'Categoria',
   centroCusto: 'C. Custo',
   valor: 'Valor',
@@ -170,9 +215,12 @@ const COLUMN_LABEL: Record<ColumnKey, string> = {
 
 const COLUMN_MAX_CHARS: Partial<Record<ColumnKey, number>> = {
   solicitante: 18,
-  estabelecimento: 20,
-  categoria: 16,
-  centroCusto: 14,
+  estabelecimento: 22,
+  fornecedor: 22,
+  requisicao: 10,
+  ordemCompra: 10,
+  categoria: 14,
+  centroCusto: 12,
   status: 10,
 };
 
@@ -191,6 +239,12 @@ function cellText(line: ReportLine, key: ColumnKey): string {
       return line.solicitante;
     case 'estabelecimento':
       return line.estabelecimento;
+    case 'fornecedor':
+      return line.fornecedor;
+    case 'requisicao':
+      return line.requisicao;
+    case 'ordemCompra':
+      return line.ordemCompra;
     case 'categoria':
       return line.categoria;
     case 'centroCusto':

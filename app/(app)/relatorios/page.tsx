@@ -41,6 +41,9 @@ interface PurchaseRow {
   user_id: string;
   category_id: string | null;
   cost_center_id: string | null;
+  requisition_number: string | null;
+  supplier_name: string | null;
+  purchase_order_code: string | null;
 }
 
 export default async function RelatoriosPage({ searchParams }: RelatoriosPageProps) {
@@ -77,7 +80,9 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
   if (!departmentHasNoCards) {
     let detailQuery = supabase
       .from('purchases')
-      .select('id, purchase_date, amount_cents, merchant_name, status, user_id, category_id, cost_center_id');
+      .select(
+        'id, purchase_date, amount_cents, merchant_name, status, user_id, category_id, cost_center_id, requisition_number, supplier_name, purchase_order_code',
+      );
     let summaryQuery = supabase.from('purchases').select('amount_cents, status');
 
     if (de) {
@@ -256,6 +261,9 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
             <TableHead>Data</TableHead>
             <TableHead>Solicitante</TableHead>
             <TableHead>Estabelecimento</TableHead>
+            <TableHead>Fornecedor</TableHead>
+            <TableHead>Requisição</TableHead>
+            <TableHead>OC</TableHead>
             <TableHead>Categoria</TableHead>
             <TableHead>Centro de custo</TableHead>
             <TableHead>Valor</TableHead>
@@ -265,7 +273,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground">
+              <TableCell colSpan={10} className="text-center text-muted-foreground">
                 Nenhum resultado para os filtros selecionados.
               </TableCell>
             </TableRow>
@@ -275,6 +283,9 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
                 <TableCell>{formatDate(row.purchase_date)}</TableCell>
                 <TableCell>{fullNameById.get(row.user_id) ?? '—'}</TableCell>
                 <TableCell>{row.merchant_name}</TableCell>
+                <TableCell>{row.supplier_name ?? '—'}</TableCell>
+                <TableCell>{row.requisition_number ?? '—'}</TableCell>
+                <TableCell>{row.purchase_order_code ?? '—'}</TableCell>
                 <TableCell>{row.category_id ? categoryNameById.get(row.category_id) ?? '—' : '—'}</TableCell>
                 <TableCell>
                   {row.cost_center_id ? costCenterNameById.get(row.cost_center_id) ?? '—' : '—'}

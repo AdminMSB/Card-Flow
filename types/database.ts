@@ -109,6 +109,11 @@ export interface Database {
           approved_by: string | null;
           approved_at: string | null;
           approval_notes: string | null;
+          requisition_number: string | null;
+          supplier_name: string | null;
+          supplier_cnpj: string | null;
+          invoice_document_number: string | null;
+          purchase_order_code: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -127,6 +132,11 @@ export interface Database {
           approved_by?: string | null;
           approved_at?: string | null;
           approval_notes?: string | null;
+          requisition_number?: string | null;
+          supplier_name?: string | null;
+          supplier_cnpj?: string | null;
+          invoice_document_number?: string | null;
+          purchase_order_code?: string | null;
           created_at?: string;
           updated_at?: string;
         };

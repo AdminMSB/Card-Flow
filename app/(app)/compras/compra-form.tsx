@@ -28,6 +28,11 @@ export interface PurchaseDefaults {
   category_id: string | null;
   cost_center_id: string | null;
   description: string | null;
+  requisition_number: string | null;
+  supplier_name: string | null;
+  supplier_cnpj: string | null;
+  invoice_document_number: string | null;
+  purchase_order_code: string | null;
 }
 
 interface CompraFormProps {
@@ -108,13 +113,71 @@ export function CompraForm({
           </div>
 
           <div>
-            <Label htmlFor={`merchantName-${mode}`}>Estabelecimento</Label>
+            <Label htmlFor={`merchantName-${mode}`}>Estabelecimento / Site</Label>
             <Input
               id={`merchantName-${mode}`}
               name="merchantName"
               type="text"
+              placeholder="Ex.: Mercado Livre"
               defaultValue={purchase?.merchant_name ?? ''}
               required
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Como aparece na fatura do cartão (loja/marketplace) — usado para conciliar com a fatura.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor={`requisitionNumber-${mode}`}>Nº da requisição</Label>
+              <Input
+                id={`requisitionNumber-${mode}`}
+                name="requisitionNumber"
+                type="text"
+                defaultValue={purchase?.requisition_number ?? ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor={`purchaseOrderCode-${mode}`}>Código de OC</Label>
+              <Input
+                id={`purchaseOrderCode-${mode}`}
+                name="purchaseOrderCode"
+                type="text"
+                placeholder="Ex.: OC012743"
+                defaultValue={purchase?.purchase_order_code ?? ''}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor={`supplierName-${mode}`}>Fornecedor</Label>
+              <Input
+                id={`supplierName-${mode}`}
+                name="supplierName"
+                type="text"
+                defaultValue={purchase?.supplier_name ?? ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor={`supplierCnpj-${mode}`}>CNPJ do fornecedor</Label>
+              <Input
+                id={`supplierCnpj-${mode}`}
+                name="supplierCnpj"
+                type="text"
+                placeholder="00.000.000/0000-00"
+                defaultValue={purchase?.supplier_cnpj ?? ''}
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor={`invoiceDocumentNumber-${mode}`}>Nº da NF / fatura / boleto</Label>
+            <Input
+              id={`invoiceDocumentNumber-${mode}`}
+              name="invoiceDocumentNumber"
+              type="text"
+              defaultValue={purchase?.invoice_document_number ?? ''}
             />
           </div>
 

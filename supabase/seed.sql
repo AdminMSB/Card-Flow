@@ -1,24 +1,31 @@
--- Dados de exemplo para começar a usar o sistema (setores, centros de custo, categorias).
+-- Dados iniciais para começar a usar o sistema. Os setores abaixo vieram da planilha real
+-- de controle de gastos do cartão corporativo (aba "Lançamentos", coluna "Departamento").
 -- Cartões e usuários são cadastrados depois, pela tela de Configurações, pois dependem
 -- de usuários já existentes no Supabase Auth.
 
 insert into departments (name) values
+  ('Administrativo'),
   ('Comercial'),
-  ('Financeiro'),
-  ('Tecnologia')
+  ('Diretoria'),
+  ('Diretoria Executiva'),
+  ('Engenharia'),
+  ('Logística'),
+  ('Manutenção'),
+  ('Produção'),
+  ('Projetos e TI'),
+  ('Qualidade'),
+  ('Recursos Humanos'),
+  ('TI')
 on conflict (name) do nothing;
 
-insert into cost_centers (name, code) values
-  ('Administrativo', 'CC-001'),
-  ('Vendas', 'CC-002'),
-  ('Tecnologia da Informação', 'CC-003')
-on conflict (code) do nothing;
-
+-- Categorias são opcionais (não existiam na planilha original) — apenas sugestões
+-- iniciais para classificar compras nos relatórios; edite/exclua livremente em Configurações.
 insert into categories (name) values
   ('Alimentação'),
   ('Transporte'),
   ('Hospedagem'),
   ('Material de escritório'),
   ('Software/Assinaturas'),
+  ('Manutenção e Peças'),
   ('Outros')
 on conflict (name) do nothing;

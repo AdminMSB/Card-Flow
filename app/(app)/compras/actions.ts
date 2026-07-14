@@ -18,6 +18,11 @@ const purchaseSchema = z.object({
   categoryId: z.string(),
   costCenterId: z.string(),
   description: z.string(),
+  requisitionNumber: z.string(),
+  purchaseOrderCode: z.string(),
+  supplierName: z.string(),
+  supplierCnpj: z.string(),
+  invoiceDocumentNumber: z.string(),
 });
 
 /** Redireciona para /compras com uma mensagem de erro amigável na query string. */
@@ -34,6 +39,11 @@ function parsePurchaseFields(formData: FormData) {
     categoryId: String(formData.get('categoryId') ?? ''),
     costCenterId: String(formData.get('costCenterId') ?? ''),
     description: String(formData.get('description') ?? ''),
+    requisitionNumber: String(formData.get('requisitionNumber') ?? ''),
+    purchaseOrderCode: String(formData.get('purchaseOrderCode') ?? ''),
+    supplierName: String(formData.get('supplierName') ?? ''),
+    supplierCnpj: String(formData.get('supplierCnpj') ?? ''),
+    invoiceDocumentNumber: String(formData.get('invoiceDocumentNumber') ?? ''),
   });
 
   if (!parsed.success) {
@@ -82,6 +92,11 @@ export async function createPurchase(formData: FormData) {
       category_id: fields.categoryId || null,
       cost_center_id: fields.costCenterId || null,
       description: fields.description || null,
+      requisition_number: fields.requisitionNumber || null,
+      purchase_order_code: fields.purchaseOrderCode || null,
+      supplier_name: fields.supplierName || null,
+      supplier_cnpj: fields.supplierCnpj || null,
+      invoice_document_number: fields.invoiceDocumentNumber || null,
     })
     .select('id')
     .single();
@@ -156,6 +171,11 @@ export async function updatePurchase(formData: FormData) {
       category_id: fields.categoryId || null,
       cost_center_id: fields.costCenterId || null,
       description: fields.description || null,
+      requisition_number: fields.requisitionNumber || null,
+      purchase_order_code: fields.purchaseOrderCode || null,
+      supplier_name: fields.supplierName || null,
+      supplier_cnpj: fields.supplierCnpj || null,
+      invoice_document_number: fields.invoiceDocumentNumber || null,
       receipt_path: receiptPath,
     })
     .eq('id', id)
