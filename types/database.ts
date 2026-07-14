@@ -97,7 +97,9 @@ export interface Database {
         Row: {
           id: string;
           card_id: string;
-          user_id: string;
+          user_id: string | null;
+          requester_name: string | null;
+          department_id: string | null;
           purchase_date: string;
           amount_cents: number;
           merchant_name: string;
@@ -120,7 +122,9 @@ export interface Database {
         Insert: {
           id?: string;
           card_id: string;
-          user_id: string;
+          user_id?: string | null;
+          requester_name?: string | null;
+          department_id?: string | null;
           purchase_date: string;
           amount_cents: number;
           merchant_name: string;

@@ -38,7 +38,8 @@ interface PurchaseRow {
   amount_cents: number;
   merchant_name: string;
   status: PurchaseStatus;
-  user_id: string;
+  user_id: string | null;
+  requester_name: string | null;
   category_id: string | null;
   cost_center_id: string | null;
   requisition_number: string | null;
@@ -62,9 +63,10 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
     supabase.from('cost_centers').select('id, name, code').order('name'),
   ]);
 
-  // Filtro por setor: não há coluna de setor em `purchases`, então resolvemos primeiro
-  // os cartões daquele setor e filtramos as compras por `card_id`.
-  let cardIdsForDepartment: string[] | null = null;
+  // Filtro por setor: uma compra pode ter o setor direto (`department_id`, usado em dados
+  // importados de um cartão compartilhado por vários setores) ou herdado do setor do
+  // cartão — casa com qualquer um dos dois.
+  let cardIdsForDepartment: string[] = [];
   if (departmentId) {
     const { data: cardsInDepartment } = await supabase
       .from('cards')
@@ -72,16 +74,15 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
       .eq('department_id', departmentId);
     cardIdsForDepartment = (cardsInDepartment ?? []).map((card) => card.id);
   }
-  const departmentHasNoCards = cardIdsForDepartment !== null && cardIdsForDepartment.length === 0;
 
   let rows: PurchaseRow[] = [];
   let allMatching: { amount_cents: number; status: PurchaseStatus }[] = [];
 
-  if (!departmentHasNoCards) {
+  {
     let detailQuery = supabase
       .from('purchases')
       .select(
-        'id, purchase_date, amount_cents, merchant_name, status, user_id, category_id, cost_center_id, requisition_number, supplier_name, purchase_order_code',
+        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, category_id, cost_center_id, requisition_number, supplier_name, purchase_order_code',
       );
     let summaryQuery = supabase.from('purchases').select('amount_cents, status');
 
@@ -101,9 +102,11 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
       detailQuery = detailQuery.eq('status', status);
       summaryQuery = summaryQuery.eq('status', status);
     }
-    if (cardIdsForDepartment) {
-      detailQuery = detailQuery.in('card_id', cardIdsForDepartment);
-      summaryQuery = summaryQuery.in('card_id', cardIdsForDepartment);
+    if (departmentId) {
+      const cardFilter = cardIdsForDepartment.length ? `,card_id.in.(${cardIdsForDepartment.join(',')})` : '';
+      const orFilter = `department_id.eq.${departmentId}${cardFilter}`;
+      detailQuery = detailQuery.or(orFilter);
+      summaryQuery = summaryQuery.or(orFilter);
     }
 
     const [{ data: detailData }, { data: summaryData }] = await Promise.all([
@@ -120,7 +123,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
   const costCenterIdsInRows = Array.from(
     new Set(rows.map((row) => row.cost_center_id).filter((id): id is string => !!id)),
   );
-  const userIds = Array.from(new Set(rows.map((row) => row.user_id)));
+  const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id)));
 
   const [{ data: categoriesData }, { data: costCentersForRows }, { data: profilesData }] = await Promise.all([
     categoryIds.length
@@ -281,7 +284,9 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
             rows.map((row) => (
               <TableRow key={row.id}>
                 <TableCell>{formatDate(row.purchase_date)}</TableCell>
-                <TableCell>{fullNameById.get(row.user_id) ?? '—'}</TableCell>
+                <TableCell>
+                  {(row.user_id ? fullNameById.get(row.user_id) : null) ?? row.requester_name ?? '—'}
+                </TableCell>
                 <TableCell>{row.merchant_name}</TableCell>
                 <TableCell>{row.supplier_name ?? '—'}</TableCell>
                 <TableCell>{row.requisition_number ?? '—'}</TableCell>

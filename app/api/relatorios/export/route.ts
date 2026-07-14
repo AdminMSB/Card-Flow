@@ -18,7 +18,8 @@ interface PurchaseRow {
   amount_cents: number;
   merchant_name: string;
   status: PurchaseStatus;
-  user_id: string;
+  user_id: string | null;
+  requester_name: string | null;
   category_id: string | null;
   cost_center_id: string | null;
   requisition_number: string | null;
@@ -48,7 +49,7 @@ async function fetchAllMatchingPurchases(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   filters: { de?: string; ate?: string; departmentId?: string; costCenterId?: string; status?: PurchaseStatus },
 ): Promise<PurchaseRow[]> {
-  let cardIdsForDepartment: string[] | null = null;
+  let cardIdsForDepartment: string[] = [];
   if (filters.departmentId) {
     const { data: cardsInDepartment } = await supabase
       .from('cards')
@@ -56,21 +57,21 @@ async function fetchAllMatchingPurchases(
       .eq('department_id', filters.departmentId);
     cardIdsForDepartment = (cardsInDepartment ?? []).map((card) => card.id);
   }
-  if (cardIdsForDepartment !== null && cardIdsForDepartment.length === 0) {
-    return [];
-  }
 
   let query = supabase
     .from('purchases')
     .select(
-      'id, purchase_date, amount_cents, merchant_name, status, user_id, category_id, cost_center_id, requisition_number, supplier_name, supplier_cnpj, invoice_document_number, purchase_order_code',
+      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, category_id, cost_center_id, requisition_number, supplier_name, supplier_cnpj, invoice_document_number, purchase_order_code',
     );
 
   if (filters.de) query = query.gte('purchase_date', filters.de);
   if (filters.ate) query = query.lte('purchase_date', filters.ate);
   if (filters.costCenterId) query = query.eq('cost_center_id', filters.costCenterId);
   if (filters.status) query = query.eq('status', filters.status);
-  if (cardIdsForDepartment) query = query.in('card_id', cardIdsForDepartment);
+  if (filters.departmentId) {
+    const cardFilter = cardIdsForDepartment.length ? `,card_id.in.(${cardIdsForDepartment.join(',')})` : '';
+    query = query.or(`department_id.eq.${filters.departmentId}${cardFilter}`);
+  }
 
   const { data } = await query.order('purchase_date', { ascending: false });
   return data ?? [];
@@ -85,7 +86,7 @@ async function buildReportLines(
   const costCenterIds = Array.from(
     new Set(rows.map((row) => row.cost_center_id).filter((id): id is string => !!id)),
   );
-  const userIds = Array.from(new Set(rows.map((row) => row.user_id)));
+  const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id)));
 
   const [{ data: categoriesData }, { data: costCentersData }, { data: profilesData }] = await Promise.all([
     categoryIds.length
@@ -107,7 +108,7 @@ async function buildReportLines(
 
   return rows.map((row) => ({
     data: formatDate(row.purchase_date),
-    solicitante: fullNameById.get(row.user_id) ?? '—',
+    solicitante: (row.user_id ? fullNameById.get(row.user_id) : null) ?? row.requester_name ?? '—',
     estabelecimento: row.merchant_name,
     fornecedor: row.supplier_name ?? '—',
     cnpjFornecedor: row.supplier_cnpj ?? '—',

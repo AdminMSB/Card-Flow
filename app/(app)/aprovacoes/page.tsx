@@ -22,7 +22,9 @@ export default async function AprovacoesPage({
     .eq('status', 'pending')
     .order('purchase_date', { ascending: false });
 
-  const requesterIds = Array.from(new Set((purchases ?? []).map((purchase) => purchase.user_id)));
+  const requesterIds = Array.from(
+    new Set((purchases ?? []).map((purchase) => purchase.user_id).filter((id): id is string => Boolean(id))),
+  );
   const categoryIds = Array.from(
     new Set((purchases ?? []).map((purchase) => purchase.category_id).filter((id): id is string => Boolean(id))),
   );
@@ -82,7 +84,9 @@ export default async function AprovacoesPage({
             <TableBody>
               {rows.map((purchase) => (
                 <TableRow key={purchase.id}>
-                  <TableCell>{requesterMap.get(purchase.user_id) ?? '—'}</TableCell>
+                  <TableCell>
+                    {(purchase.user_id ? requesterMap.get(purchase.user_id) : null) ?? purchase.requester_name ?? '—'}
+                  </TableCell>
                   <TableCell>{formatDate(purchase.purchase_date)}</TableCell>
                   <TableCell>{purchase.merchant_name}</TableCell>
                   <TableCell>{purchase.category_id ? categoryMap.get(purchase.category_id) ?? '—' : '—'}</TableCell>

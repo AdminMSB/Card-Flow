@@ -40,6 +40,15 @@ export default async function ComprasPage({
   const categoryMap = new Map((categories ?? []).map((category) => [category.id, category.name]));
   const costCenterMap = new Map((costCenters ?? []).map((costCenter) => [costCenter.id, costCenter.name]));
 
+  const requesterIds = Array.from(
+    new Set((purchases ?? []).map((purchase) => purchase.user_id).filter((id): id is string => !!id)),
+  );
+  let requesterFullNameById = new Map<string, string>();
+  if (requesterIds.length > 0) {
+    const { data: requesterProfiles } = await supabase.from('profiles').select('id, full_name').in('id', requesterIds);
+    requesterFullNameById = new Map((requesterProfiles ?? []).map((requester) => [requester.id, requester.full_name]));
+  }
+
   const rows = await Promise.all(
     (purchases ?? []).map(async (purchase) => {
       let receiptUrl: string | null = null;
@@ -82,6 +91,7 @@ export default async function ComprasPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
+                <TableHead>Solicitante</TableHead>
                 <TableHead>Estabelecimento</TableHead>
                 <TableHead>Fornecedor</TableHead>
                 <TableHead>Requisição</TableHead>
@@ -98,6 +108,11 @@ export default async function ComprasPage({
               {rows.map((purchase) => (
                 <TableRow key={purchase.id}>
                   <TableCell>{formatDate(purchase.purchase_date)}</TableCell>
+                  <TableCell>
+                    {(purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ??
+                      purchase.requester_name ??
+                      '—'}
+                  </TableCell>
                   <TableCell>{purchase.merchant_name}</TableCell>
                   <TableCell>{purchase.supplier_name ?? '—'}</TableCell>
                   <TableCell>{purchase.requisition_number ?? '—'}</TableCell>
@@ -140,7 +155,7 @@ export default async function ComprasPage({
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center text-muted-foreground">
+                  <TableCell colSpan={12} className="text-center text-muted-foreground">
                     Nenhuma compra registrada ainda.
                   </TableCell>
                 </TableRow>
