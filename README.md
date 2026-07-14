@@ -16,7 +16,9 @@ erros de digitação e o tempo de fechamento mensal.
   aplicação.
 - **Tailwind CSS** com componentes de UI próprios (sem dependência de biblioteca externa de
   componentes).
-- Parsing de fatura: **CSV/XLSX** via `xlsx` (SheetJS), **OFX** via parser próprio.
+- Parsing de fatura: **CSV/XLSX** via `xlsx` (SheetJS), **OFX** via parser próprio, **PDF**
+  (fatura digitalizada, ex.: Santander Empresas) via `pdfjs-dist`, extraindo transações pela
+  posição do texto na página.
 - Exportação de relatório: **Excel** via `exceljs`, **PDF** via `pdf-lib`.
 - Testes: **Vitest** (algoritmo de conciliação e parsers de arquivo).
 - Deploy: **Vercel** (aplicação) + **Supabase** (banco/auth/storage).
@@ -95,7 +97,7 @@ app/
 lib/
   supabase/                  — clients Supabase (server, browser, admin)
   matching/                  — algoritmo de conciliação (testável isoladamente)
-  parsers/                   — CSV/XLSX/OFX → formato normalizado
+  parsers/                   — CSV/XLSX/OFX/PDF → formato normalizado
   auth.ts, format.ts, utils.ts
 components/
   ui/                        — componentes de interface reutilizáveis
@@ -109,7 +111,7 @@ tests/                       — Vitest (matching + parsers)
 
 1. **Compra**: colaborador registra a compra com comprovante; fica `pending`.
 2. **Aprovação**: gestor do setor aprova (`approved`) ou rejeita (`rejected`) com observação.
-3. **Importação da fatura**: financeiro sobe o arquivo (CSV/XLSX/OFX) da operadora; o sistema
+3. **Importação da fatura**: financeiro sobe o arquivo (CSV/XLSX/OFX/PDF) da operadora; o sistema
    detecta o layout e mostra uma tela de confirmação de mapeamento de colunas (data/valor/
    descrição) antes de gerar os itens da fatura.
 4. **Conciliação automática**: o sistema sugere pares fatura↔compra por valor, data e
@@ -126,5 +128,12 @@ tests/                       — Vitest (matching + parsers)
   manualmente contra um projeto Supabase de desenvolvimento.
 - O parser de OFX cobre o formato mais comum de extrato de cartão (`STMTTRN`); variações muito
   específicas de operadora podem exigir ajuste em `lib/parsers/ofx.ts`.
+- O parser de PDF (`lib/parsers/pdf.ts`) foi calibrado com o layout real da fatura mensal
+  "Empresas Mastercard Platinum" do Santander (posição do texto na página: data, descrição,
+  local e valor em R$). Fatura de outra operadora/bandeira com layout diferente pode não ser
+  reconhecida — nesse caso, ajuste as constantes de posição (`*_COLUMN_X`) no arquivo, ou
+  utilize CSV/XLSX/OFX como alternativa se a operadora oferecer esses formatos de exportação.
+  Linhas de pagamento, estorno, IOF, anuidade e outras tarifas são deliberadamente ignoradas
+  (só compras de estabelecimento entram na conciliação).
 - Não há notificação por e-mail em aprovações/rejeições — pode ser adicionado via Supabase Edge
   Functions + webhook de banco, se necessário.

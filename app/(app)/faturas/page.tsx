@@ -60,7 +60,8 @@ export default async function FaturasPage({
         <CardHeader>
           <CardTitle>Importar fatura</CardTitle>
           <CardDescription>
-            Aceita arquivos .csv, .xlsx, .xls ou .ofx exportados pela operadora do cartão.
+            Aceita arquivos .csv, .xlsx, .xls, .ofx ou .pdf (fatura digitalizada) exportados/emitidos pela
+            operadora do cartão.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -88,7 +89,7 @@ export default async function FaturasPage({
 
             <div>
               <Label htmlFor="file">Arquivo da fatura</Label>
-              <Input id="file" name="file" type="file" accept=".csv,.xlsx,.xls,.ofx" required />
+              <Input id="file" name="file" type="file" accept=".csv,.xlsx,.xls,.ofx,.pdf" required />
             </div>
 
             <Button type="submit">Importar</Button>

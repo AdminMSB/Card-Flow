@@ -11,7 +11,8 @@ describe('detectFileType', () => {
     expect(detectFileType('fatura.XLSX')).toBe('xlsx');
     expect(detectFileType('fatura.xls')).toBe('xlsx');
     expect(detectFileType('fatura.OFX')).toBe('ofx');
-    expect(detectFileType('fatura.pdf')).toBeNull();
+    expect(detectFileType('fatura.pdf')).toBe('pdf');
+    expect(detectFileType('fatura.docx')).toBeNull();
   });
 });
 

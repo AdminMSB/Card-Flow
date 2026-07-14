@@ -25,12 +25,13 @@ export interface NormalizedInvoiceLine {
   descriptionRaw: string | null;
 }
 
-export type SupportedInvoiceFileType = 'csv' | 'xlsx' | 'ofx';
+export type SupportedInvoiceFileType = 'csv' | 'xlsx' | 'ofx' | 'pdf';
 
 export function detectFileType(fileName: string): SupportedInvoiceFileType | null {
   const ext = fileName.toLowerCase().split('.').pop();
   if (ext === 'csv') return 'csv';
   if (ext === 'xlsx' || ext === 'xls') return 'xlsx';
   if (ext === 'ofx') return 'ofx';
+  if (ext === 'pdf') return 'pdf';
   return null;
 }
