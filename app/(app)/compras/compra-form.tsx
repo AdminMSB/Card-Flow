@@ -25,11 +25,9 @@ export interface PurchaseDefaults {
   purchase_date: string;
   amount_cents: number;
   merchant_name: string;
-  category_id: string | null;
   cost_center_id: string | null;
   description: string | null;
   requisition_number: string | null;
-  supplier_name: string | null;
   supplier_cnpj: string | null;
   invoice_document_number: string | null;
   purchase_order_code: string | null;
@@ -38,7 +36,6 @@ export interface PurchaseDefaults {
 interface CompraFormProps {
   mode: 'create' | 'edit';
   purchase?: PurchaseDefaults;
-  categories: OptionRow[];
   costCenters: OptionRow[];
   cards: CardOption[];
   triggerLabel?: string;
@@ -46,15 +43,7 @@ interface CompraFormProps {
 }
 
 /** Formulário de compra (criação e edição) exibido dentro de um Dialog. */
-export function CompraForm({
-  mode,
-  purchase,
-  categories,
-  costCenters,
-  cards,
-  triggerLabel,
-  triggerVariant,
-}: CompraFormProps) {
+export function CompraForm({ mode, purchase, costCenters, cards, triggerLabel, triggerVariant }: CompraFormProps) {
   const [open, setOpen] = useState(false);
   const action = mode === 'edit' ? updatePurchase : createPurchase;
   const title = mode === 'edit' ? 'Editar compra' : 'Nova compra';
@@ -113,7 +102,7 @@ export function CompraForm({
           </div>
 
           <div>
-            <Label htmlFor={`merchantName-${mode}`}>Estabelecimento / Site</Label>
+            <Label htmlFor={`merchantName-${mode}`}>Estabelecimento / Fornecedor</Label>
             <Input
               id={`merchantName-${mode}`}
               name="merchantName"
@@ -123,7 +112,7 @@ export function CompraForm({
               required
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Como aparece na fatura do cartão (loja/marketplace) — usado para conciliar com a fatura.
+              Como aparece na fatura do cartão — usado para conciliar com a fatura.
             </p>
           </div>
 
@@ -151,15 +140,6 @@ export function CompraForm({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor={`supplierName-${mode}`}>Fornecedor</Label>
-              <Input
-                id={`supplierName-${mode}`}
-                name="supplierName"
-                type="text"
-                defaultValue={purchase?.supplier_name ?? ''}
-              />
-            </div>
-            <div>
               <Label htmlFor={`supplierCnpj-${mode}`}>CNPJ do fornecedor</Label>
               <Input
                 id={`supplierCnpj-${mode}`}
@@ -168,30 +148,6 @@ export function CompraForm({
                 placeholder="00.000.000/0000-00"
                 defaultValue={purchase?.supplier_cnpj ?? ''}
               />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor={`invoiceDocumentNumber-${mode}`}>Nº da NF / fatura / boleto</Label>
-            <Input
-              id={`invoiceDocumentNumber-${mode}`}
-              name="invoiceDocumentNumber"
-              type="text"
-              defaultValue={purchase?.invoice_document_number ?? ''}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor={`categoryId-${mode}`}>Categoria</Label>
-              <Select id={`categoryId-${mode}`} name="categoryId" defaultValue={purchase?.category_id ?? ''}>
-                <option value="">Sem categoria</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </Select>
             </div>
             <div>
               <Label htmlFor={`costCenterId-${mode}`}>Centro de custo</Label>
@@ -204,6 +160,16 @@ export function CompraForm({
                 ))}
               </Select>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor={`invoiceDocumentNumber-${mode}`}>Nº da NF / fatura / boleto</Label>
+            <Input
+              id={`invoiceDocumentNumber-${mode}`}
+              name="invoiceDocumentNumber"
+              type="text"
+              defaultValue={purchase?.invoice_document_number ?? ''}
+            />
           </div>
 
           <div>

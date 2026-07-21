@@ -20,10 +20,8 @@ interface PurchaseRow {
   status: PurchaseStatus;
   user_id: string | null;
   requester_name: string | null;
-  category_id: string | null;
   cost_center_id: string | null;
   requisition_number: string | null;
-  supplier_name: string | null;
   supplier_cnpj: string | null;
   invoice_document_number: string | null;
   purchase_order_code: string | null;
@@ -32,13 +30,11 @@ interface PurchaseRow {
 interface ReportLine {
   data: string;
   solicitante: string;
-  estabelecimento: string;
   fornecedor: string;
   cnpjFornecedor: string;
   requisicao: string;
   ordemCompra: string;
   notaFiscal: string;
-  categoria: string;
   centroCusto: string;
   valorCents: number;
   status: string;
@@ -61,7 +57,7 @@ async function fetchAllMatchingPurchases(
   let query = supabase
     .from('purchases')
     .select(
-      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, category_id, cost_center_id, requisition_number, supplier_name, supplier_cnpj, invoice_document_number, purchase_order_code',
+      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, cost_center_id, requisition_number, supplier_cnpj, invoice_document_number, purchase_order_code',
     );
 
   if (filters.de) query = query.gte('purchase_date', filters.de);
@@ -77,21 +73,17 @@ async function fetchAllMatchingPurchases(
   return data ?? [];
 }
 
-/** Resolve nomes de categoria/centro de custo/solicitante em lote para as linhas encontradas. */
+/** Resolve nomes de centro de custo/solicitante em lote para as linhas encontradas. */
 async function buildReportLines(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   rows: PurchaseRow[],
 ): Promise<ReportLine[]> {
-  const categoryIds = Array.from(new Set(rows.map((row) => row.category_id).filter((id): id is string => !!id)));
   const costCenterIds = Array.from(
     new Set(rows.map((row) => row.cost_center_id).filter((id): id is string => !!id)),
   );
   const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id)));
 
-  const [{ data: categoriesData }, { data: costCentersData }, { data: profilesData }] = await Promise.all([
-    categoryIds.length
-      ? supabase.from('categories').select('id, name').in('id', categoryIds)
-      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+  const [{ data: costCentersData }, { data: profilesData }] = await Promise.all([
     costCenterIds.length
       ? supabase.from('cost_centers').select('id, name, code').in('id', costCenterIds)
       : Promise.resolve({ data: [] as { id: string; name: string; code: string }[] }),
@@ -100,7 +92,6 @@ async function buildReportLines(
       : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
   ]);
 
-  const categoryNameById = new Map((categoriesData ?? []).map((category) => [category.id, category.name]));
   const costCenterNameById = new Map(
     (costCentersData ?? []).map((costCenter) => [costCenter.id, `${costCenter.name} (${costCenter.code})`]),
   );
@@ -109,13 +100,12 @@ async function buildReportLines(
   return rows.map((row) => ({
     data: formatDate(row.purchase_date),
     solicitante: (row.user_id ? fullNameById.get(row.user_id) : null) ?? row.requester_name ?? '—',
-    estabelecimento: row.merchant_name,
-    fornecedor: row.supplier_name ?? '—',
+    // Estabelecimento e fornecedor são a mesma informação — mostramos só uma vez.
+    fornecedor: row.merchant_name,
     cnpjFornecedor: row.supplier_cnpj ?? '—',
     requisicao: row.requisition_number ?? '—',
     ordemCompra: row.purchase_order_code ?? '—',
     notaFiscal: row.invoice_document_number ?? '—',
-    categoria: row.category_id ? categoryNameById.get(row.category_id) ?? '—' : '—',
     centroCusto: row.cost_center_id ? costCenterNameById.get(row.cost_center_id) ?? '—' : '—',
     valorCents: row.amount_cents,
     status: PURCHASE_STATUS_LABELS[row.status],
@@ -129,13 +119,11 @@ async function buildExcelResponse(lines: ReportLine[]) {
   sheet.columns = [
     { header: 'Data', key: 'data', width: 12 },
     { header: 'Solicitante', key: 'solicitante', width: 28 },
-    { header: 'Estabelecimento', key: 'estabelecimento', width: 28 },
-    { header: 'Fornecedor', key: 'fornecedor', width: 28 },
+    { header: 'Estabelecimento/Fornecedor', key: 'fornecedor', width: 28 },
     { header: 'CNPJ Fornecedor', key: 'cnpjFornecedor', width: 20 },
     { header: 'Requisição', key: 'requisicao', width: 14 },
     { header: 'Nº OC', key: 'ordemCompra', width: 14 },
     { header: 'NF/Fatura/Boleto', key: 'notaFiscal', width: 18 },
-    { header: 'Categoria', key: 'categoria', width: 20 },
     { header: 'Centro de Custo', key: 'centroCusto', width: 24 },
     { header: 'Valor', key: 'valor', width: 16 },
     { header: 'Status', key: 'status', width: 14 },
@@ -149,13 +137,11 @@ async function buildExcelResponse(lines: ReportLine[]) {
       sheet.addRow({
         data: line.data,
         solicitante: line.solicitante,
-        estabelecimento: line.estabelecimento,
         fornecedor: line.fornecedor,
         cnpjFornecedor: line.cnpjFornecedor,
         requisicao: line.requisicao,
         ordemCompra: line.ordemCompra,
         notaFiscal: line.notaFiscal,
-        categoria: line.categoria,
         centroCusto: line.centroCusto,
         valor: line.valorCents / 100,
         status: line.status,
@@ -168,20 +154,17 @@ async function buildExcelResponse(lines: ReportLine[]) {
   return workbook.xlsx.writeBuffer();
 }
 
-// A4 paisagem (mais larga) para caber as colunas extras vindas da planilha original.
-const PAGE_WIDTH = 841.89;
-const PAGE_HEIGHT = 595.28;
+const PAGE_WIDTH = 595.28; // A4 em pontos
+const PAGE_HEIGHT = 841.89;
 const MARGIN = 40;
 const LINE_HEIGHT = 16;
 
 const COLUMN_ORDER = [
   'data',
   'solicitante',
-  'estabelecimento',
   'fornecedor',
   'requisicao',
   'ordemCompra',
-  'categoria',
   'centroCusto',
   'valor',
   'status',
@@ -191,37 +174,31 @@ type ColumnKey = (typeof COLUMN_ORDER)[number];
 const COLUMN_X: Record<ColumnKey, number> = {
   data: MARGIN,
   solicitante: MARGIN + 45,
-  estabelecimento: MARGIN + 155,
-  fornecedor: MARGIN + 285,
-  requisicao: MARGIN + 415,
-  ordemCompra: MARGIN + 465,
-  categoria: MARGIN + 515,
-  centroCusto: MARGIN + 585,
-  valor: MARGIN + 655,
-  status: MARGIN + 715,
+  fornecedor: MARGIN + 150,
+  requisicao: MARGIN + 270,
+  ordemCompra: MARGIN + 320,
+  centroCusto: MARGIN + 370,
+  valor: MARGIN + 440,
+  status: MARGIN + 480,
 };
 
 const COLUMN_LABEL: Record<ColumnKey, string> = {
   data: 'Data',
   solicitante: 'Solicitante',
-  estabelecimento: 'Estabelecimento',
-  fornecedor: 'Fornecedor',
+  fornecedor: 'Estab./Fornecedor',
   requisicao: 'Requis.',
   ordemCompra: 'OC',
-  categoria: 'Categoria',
   centroCusto: 'C. Custo',
   valor: 'Valor',
   status: 'Status',
 };
 
 const COLUMN_MAX_CHARS: Partial<Record<ColumnKey, number>> = {
-  solicitante: 18,
-  estabelecimento: 22,
-  fornecedor: 22,
-  requisicao: 10,
-  ordemCompra: 10,
-  categoria: 14,
-  centroCusto: 12,
+  solicitante: 16,
+  fornecedor: 20,
+  requisicao: 8,
+  ordemCompra: 8,
+  centroCusto: 10,
   status: 10,
 };
 
@@ -238,16 +215,12 @@ function cellText(line: ReportLine, key: ColumnKey): string {
       return line.data;
     case 'solicitante':
       return line.solicitante;
-    case 'estabelecimento':
-      return line.estabelecimento;
     case 'fornecedor':
       return line.fornecedor;
     case 'requisicao':
       return line.requisicao;
     case 'ordemCompra':
       return line.ordemCompra;
-    case 'categoria':
-      return line.categoria;
     case 'centroCusto':
       return line.centroCusto;
     case 'valor':

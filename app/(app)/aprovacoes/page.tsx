@@ -25,9 +25,6 @@ export default async function AprovacoesPage({
   const requesterIds = Array.from(
     new Set((purchases ?? []).map((purchase) => purchase.user_id).filter((id): id is string => Boolean(id))),
   );
-  const categoryIds = Array.from(
-    new Set((purchases ?? []).map((purchase) => purchase.category_id).filter((id): id is string => Boolean(id))),
-  );
 
   let requesters: { id: string; full_name: string }[] = [];
   if (requesterIds.length > 0) {
@@ -35,14 +32,7 @@ export default async function AprovacoesPage({
     requesters = data ?? [];
   }
 
-  let categories: { id: string; name: string }[] = [];
-  if (categoryIds.length > 0) {
-    const { data } = await supabase.from('categories').select('id, name').in('id', categoryIds);
-    categories = data ?? [];
-  }
-
   const requesterMap = new Map(requesters.map((requester) => [requester.id, requester.full_name]));
-  const categoryMap = new Map(categories.map((category) => [category.id, category.name]));
 
   const rows = await Promise.all(
     (purchases ?? []).map(async (purchase) => {
@@ -74,8 +64,7 @@ export default async function AprovacoesPage({
               <TableRow>
                 <TableHead>Solicitante</TableHead>
                 <TableHead>Data</TableHead>
-                <TableHead>Estabelecimento</TableHead>
-                <TableHead>Categoria</TableHead>
+                <TableHead>Estabelecimento / Fornecedor</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Comprovante</TableHead>
                 <TableHead>Ações</TableHead>
@@ -89,7 +78,6 @@ export default async function AprovacoesPage({
                   </TableCell>
                   <TableCell>{formatDate(purchase.purchase_date)}</TableCell>
                   <TableCell>{purchase.merchant_name}</TableCell>
-                  <TableCell>{purchase.category_id ? categoryMap.get(purchase.category_id) ?? '—' : '—'}</TableCell>
                   <TableCell>{formatCurrencyCents(purchase.amount_cents)}</TableCell>
                   <TableCell>
                     {purchase.receiptUrl ? (
@@ -120,7 +108,7 @@ export default async function AprovacoesPage({
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     Nenhuma compra pendente de aprovação.
                   </TableCell>
                 </TableRow>

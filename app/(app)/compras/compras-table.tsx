@@ -12,7 +12,6 @@ import type { PurchaseStatus } from '@/types/domain';
 export interface PurchaseListItem extends PurchaseDefaults {
   status: PurchaseStatus;
   requesterLabel: string;
-  categoryName: string | null;
   costCenterName: string | null;
   approvalNotes: string | null;
   approvedAt: string | null;
@@ -31,13 +30,12 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 interface ComprasTableProps {
   rows: PurchaseListItem[];
-  categories: OptionRow[];
   costCenters: OptionRow[];
   cards: CardOption[];
 }
 
 /** Tabela resumida de compras; clicar em uma linha abre um painel com todos os detalhes. */
-export function ComprasTable({ rows, categories, costCenters, cards }: ComprasTableProps) {
+export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = rows.find((row) => row.id === selectedId) ?? null;
 
@@ -68,7 +66,7 @@ export function ComprasTable({ rows, categories, costCenters, cards }: ComprasTa
               <TableCell>{row.requisition_number ?? '—'}</TableCell>
               <TableCell>{row.requesterLabel}</TableCell>
               <TableCell>{formatDate(row.purchase_date)}</TableCell>
-              <TableCell>{row.supplier_name ?? '—'}</TableCell>
+              <TableCell>{row.merchant_name}</TableCell>
               <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
             </TableRow>
           ))}
@@ -88,13 +86,11 @@ export function ComprasTable({ rows, categories, costCenters, cards }: ComprasTa
             <div className="flex flex-col">
               <DetailRow label="Data" value={formatDate(selected.purchase_date)} />
               <DetailRow label="Solicitante" value={selected.requesterLabel} />
-              <DetailRow label="Estabelecimento / Site" value={selected.merchant_name} />
-              <DetailRow label="Fornecedor" value={selected.supplier_name ?? '—'} />
+              <DetailRow label="Estabelecimento / Fornecedor" value={selected.merchant_name} />
               <DetailRow label="CNPJ do fornecedor" value={selected.supplier_cnpj ?? '—'} />
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
               <DetailRow label="Código de OC" value={selected.purchase_order_code ?? '—'} />
               <DetailRow label="Nº da NF / fatura / boleto" value={selected.invoice_document_number ?? '—'} />
-              <DetailRow label="Categoria" value={selected.categoryName ?? '—'} />
               <DetailRow label="Centro de custo" value={selected.costCenterName ?? '—'} />
               <DetailRow label="Valor" value={formatCurrencyCents(selected.amount_cents)} />
               <DetailRow label="Status" value={<PurchaseStatusBadge status={selected.status} />} />
@@ -119,7 +115,7 @@ export function ComprasTable({ rows, categories, costCenters, cards }: ComprasTa
 
             {selected.canManage && (
               <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
-                <PurchaseRowActions purchase={selected} categories={categories} costCenters={costCenters} cards={cards} />
+                <PurchaseRowActions purchase={selected} costCenters={costCenters} cards={cards} />
               </div>
             )}
           </>

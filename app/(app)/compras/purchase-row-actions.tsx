@@ -6,19 +6,17 @@ import { Button } from '@/components/ui/button';
 
 interface PurchaseRowActionsProps {
   purchase: PurchaseDefaults;
-  categories: OptionRow[];
   costCenters: OptionRow[];
   cards: CardOption[];
 }
 
 /** Ações "Editar" / "Excluir" exibidas na linha de uma compra própria ainda pendente. */
-export function PurchaseRowActions({ purchase, categories, costCenters, cards }: PurchaseRowActionsProps) {
+export function PurchaseRowActions({ purchase, costCenters, cards }: PurchaseRowActionsProps) {
   return (
     <div className="flex items-center gap-2">
       <CompraForm
         mode="edit"
         purchase={purchase}
-        categories={categories}
         costCenters={costCenters}
         cards={cards}
         triggerLabel="Editar"

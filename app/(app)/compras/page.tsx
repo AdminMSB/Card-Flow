@@ -17,7 +17,6 @@ export default async function ComprasPage({
     .select('*')
     .order('purchase_date', { ascending: false });
 
-  const { data: categories } = await supabase.from('categories').select('id, name').order('name');
   const { data: costCenters } = await supabase.from('cost_centers').select('id, name').order('name');
 
   // Cartões visíveis para o formulário: primeiro os próprios cartões ativos; se o usuário
@@ -34,7 +33,6 @@ export default async function ComprasPage({
     cards = activeCards ?? [];
   }
 
-  const categoryMap = new Map((categories ?? []).map((category) => [category.id, category.name]));
   const costCenterMap = new Map((costCenters ?? []).map((costCenter) => [costCenter.id, costCenter.name]));
 
   const requesterIds = Array.from(
@@ -60,7 +58,6 @@ export default async function ComprasPage({
           (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ??
           purchase.requester_name ??
           '—',
-        categoryName: purchase.category_id ? categoryMap.get(purchase.category_id) ?? null : null,
         costCenterName: purchase.cost_center_id ? costCenterMap.get(purchase.cost_center_id) ?? null : null,
         approvalNotes: purchase.approval_notes,
         approvedAt: purchase.approved_at,
@@ -76,9 +73,7 @@ export default async function ComprasPage({
           <h1 className="text-2xl font-semibold">Compras</h1>
           <p className="text-sm text-muted-foreground">Registre e acompanhe as despesas do cartão corporativo.</p>
         </div>
-        {cards.length > 0 && (
-          <CompraForm mode="create" categories={categories ?? []} costCenters={costCenters ?? []} cards={cards} />
-        )}
+        {cards.length > 0 && <CompraForm mode="create" costCenters={costCenters ?? []} cards={cards} />}
       </div>
 
       {searchParams.error && <p className="text-sm text-destructive">{searchParams.error}</p>}
@@ -96,7 +91,7 @@ export default async function ComprasPage({
           <CardTitle>Minhas compras</CardTitle>
         </CardHeader>
         <CardContent>
-          <ComprasTable rows={rows} categories={categories ?? []} costCenters={costCenters ?? []} cards={cards} />
+          <ComprasTable rows={rows} costCenters={costCenters ?? []} cards={cards} />
         </CardContent>
       </Card>
     </div>

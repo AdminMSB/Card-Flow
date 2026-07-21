@@ -40,10 +40,8 @@ interface PurchaseRow {
   status: PurchaseStatus;
   user_id: string | null;
   requester_name: string | null;
-  category_id: string | null;
   cost_center_id: string | null;
   requisition_number: string | null;
-  supplier_name: string | null;
   purchase_order_code: string | null;
 }
 
@@ -82,7 +80,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
     let detailQuery = supabase
       .from('purchases')
       .select(
-        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, category_id, cost_center_id, requisition_number, supplier_name, purchase_order_code',
+        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, cost_center_id, requisition_number, purchase_order_code',
       );
     let summaryQuery = supabase.from('purchases').select('amount_cents, status');
 
@@ -117,18 +115,14 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
     allMatching = summaryData ?? [];
   }
 
-  // Nomes de categoria/centro de custo/solicitante são resolvidos em lote (sem embutir
-  // joins no select do Postgrest, já que o tipo `Database` não declara `Relationships`).
-  const categoryIds = Array.from(new Set(rows.map((row) => row.category_id).filter((id): id is string => !!id)));
+  // Nomes de centro de custo/solicitante são resolvidos em lote (sem embutir joins no
+  // select do Postgrest, já que o tipo `Database` não declara `Relationships`).
   const costCenterIdsInRows = Array.from(
     new Set(rows.map((row) => row.cost_center_id).filter((id): id is string => !!id)),
   );
   const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id)));
 
-  const [{ data: categoriesData }, { data: costCentersForRows }, { data: profilesData }] = await Promise.all([
-    categoryIds.length
-      ? supabase.from('categories').select('id, name').in('id', categoryIds)
-      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+  const [{ data: costCentersForRows }, { data: profilesData }] = await Promise.all([
     costCenterIdsInRows.length
       ? supabase.from('cost_centers').select('id, name, code').in('id', costCenterIdsInRows)
       : Promise.resolve({ data: [] as { id: string; name: string; code: string }[] }),
@@ -137,7 +131,6 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
       : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
   ]);
 
-  const categoryNameById = new Map((categoriesData ?? []).map((category) => [category.id, category.name]));
   const costCenterNameById = new Map(
     (costCentersForRows ?? []).map((costCenter) => [costCenter.id, `${costCenter.name} (${costCenter.code})`]),
   );
@@ -263,11 +256,9 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
           <TableRow>
             <TableHead>Data</TableHead>
             <TableHead>Solicitante</TableHead>
-            <TableHead>Estabelecimento</TableHead>
-            <TableHead>Fornecedor</TableHead>
+            <TableHead>Estabelecimento / Fornecedor</TableHead>
             <TableHead>Requisição</TableHead>
             <TableHead>OC</TableHead>
-            <TableHead>Categoria</TableHead>
             <TableHead>Centro de custo</TableHead>
             <TableHead>Valor</TableHead>
             <TableHead>Status</TableHead>
@@ -276,7 +267,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center text-muted-foreground">
+              <TableCell colSpan={8} className="text-center text-muted-foreground">
                 Nenhum resultado para os filtros selecionados.
               </TableCell>
             </TableRow>
@@ -288,10 +279,8 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
                   {(row.user_id ? fullNameById.get(row.user_id) : null) ?? row.requester_name ?? '—'}
                 </TableCell>
                 <TableCell>{row.merchant_name}</TableCell>
-                <TableCell>{row.supplier_name ?? '—'}</TableCell>
                 <TableCell>{row.requisition_number ?? '—'}</TableCell>
                 <TableCell>{row.purchase_order_code ?? '—'}</TableCell>
-                <TableCell>{row.category_id ? categoryNameById.get(row.category_id) ?? '—' : '—'}</TableCell>
                 <TableCell>
                   {row.cost_center_id ? costCenterNameById.get(row.cost_center_id) ?? '—' : '—'}
                 </TableCell>
