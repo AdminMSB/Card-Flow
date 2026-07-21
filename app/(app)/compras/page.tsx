@@ -44,27 +44,14 @@ export default async function ComprasPage({
     requesterFullNameById = new Map((requesterProfiles ?? []).map((requester) => [requester.id, requester.full_name]));
   }
 
-  const rows: PurchaseListItem[] = await Promise.all(
-    (purchases ?? []).map(async (purchase) => {
-      let receiptUrl: string | null = null;
-      if (purchase.receipt_path) {
-        const { data } = await supabase.storage.from('receipts').createSignedUrl(purchase.receipt_path, 60);
-        receiptUrl = data?.signedUrl ?? null;
-      }
-      return {
-        ...purchase,
-        receiptUrl,
-        requesterLabel:
-          (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ??
-          purchase.requester_name ??
-          '—',
-        costCenterName: purchase.cost_center_id ? costCenterMap.get(purchase.cost_center_id) ?? null : null,
-        approvalNotes: purchase.approval_notes,
-        approvedAt: purchase.approved_at,
-        canManage: purchase.user_id === profile.id && purchase.status === 'pending',
-      };
-    }),
-  );
+  const rows: PurchaseListItem[] = (purchases ?? []).map((purchase) => ({
+    ...purchase,
+    requesterLabel:
+      (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ?? purchase.requester_name ?? '—',
+    costCenterName: purchase.cost_center_id ? costCenterMap.get(purchase.cost_center_id) ?? null : null,
+    approvalNotes: purchase.approval_notes,
+    canManage: purchase.user_id === profile.id && purchase.status === 'pending',
+  }));
 
   return (
     <div className="flex flex-col gap-6">

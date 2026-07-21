@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { PurchaseStatusBadge } from '@/components/status-badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrencyCents, formatDate, formatDateTime } from '@/lib/format';
+import { formatCurrencyCents, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { PurchaseRowActions } from './purchase-row-actions';
 import type { CardOption, OptionRow, PurchaseDefaults } from './compra-form';
@@ -18,8 +18,6 @@ export interface PurchaseListItem extends PurchaseDefaults {
   requesterLabel: string;
   costCenterName: string | null;
   approvalNotes: string | null;
-  approvedAt: string | null;
-  receiptUrl: string | null;
   canManage: boolean;
 }
 
@@ -191,21 +189,6 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
               <DetailRow label="Status" value={<PurchaseStatusBadge status={selected.status} />} />
               {selected.description && <DetailRow label="Descrição" value={selected.description} />}
               {selected.approvalNotes && <DetailRow label="Observação da aprovação" value={selected.approvalNotes} />}
-              {selected.approvedAt && (
-                <DetailRow label="Aprovada/rejeitada em" value={formatDateTime(selected.approvedAt)} />
-              )}
-              <DetailRow
-                label="Comprovante"
-                value={
-                  selected.receiptUrl ? (
-                    <a href={selected.receiptUrl} target="_blank" rel="noreferrer" className="text-primary underline">
-                      Ver comprovante
-                    </a>
-                  ) : (
-                    '—'
-                  )
-                }
-              />
             </div>
 
             {selected.canManage && (

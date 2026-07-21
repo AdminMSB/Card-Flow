@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrencyCents, formatDate } from '@/lib/format';
-import { approvePurchase } from './actions';
+import { AprovarDialog } from './aprovar-dialog';
 import { RejeitarDialog } from './rejeitar-dialog';
 
 export interface ApprovalListItem {
@@ -105,12 +104,7 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
             </div>
 
             <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
-              <form action={approvePurchase}>
-                <input type="hidden" name="id" value={selected.id} />
-                <Button type="submit" variant="primary" size="sm">
-                  Aprovar
-                </Button>
-              </form>
+              <AprovarDialog purchaseId={selected.id} defaultValue={selected.purchase_order_code} />
               <RejeitarDialog purchaseId={selected.id} />
             </div>
           </>

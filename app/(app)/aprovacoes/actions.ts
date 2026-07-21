@@ -11,12 +11,21 @@ function fail(message: string): never {
   redirect(`/aprovacoes?error=${encodeURIComponent(message)}`);
 }
 
+const approveSchema = z.object({
+  purchaseOrderCode: z.string().trim().min(1, 'Informe o código da OC ou Diário de Fatura.'),
+});
+
 export async function approvePurchase(formData: FormData) {
   const profile = await requireRole('gestor', 'financeiro', 'admin');
   const supabase = await createServerSupabaseClient();
 
   const id = String(formData.get('id') ?? '');
   if (!id) fail('Compra inválida.');
+
+  const parsed = approveSchema.safeParse({ purchaseOrderCode: String(formData.get('purchaseOrderCode') ?? '') });
+  if (!parsed.success) {
+    fail(parsed.error.issues[0]?.message ?? 'Informe o código da OC ou Diário de Fatura.');
+  }
 
   // RLS garante que só um gestor/financeiro/admin com visibilidade sobre a compra
   // consegue atualizar; o filtro por status evita reaprovar algo já decidido.
@@ -27,6 +36,7 @@ export async function approvePurchase(formData: FormData) {
       approved_by: profile.id,
       approved_at: new Date().toISOString(),
       approval_notes: null,
+      purchase_order_code: parsed.data.purchaseOrderCode,
     })
     .eq('id', id)
     .eq('status', 'pending');
@@ -34,6 +44,7 @@ export async function approvePurchase(formData: FormData) {
   if (error) fail('Não foi possível aprovar a compra.');
 
   revalidatePath('/aprovacoes');
+  revalidatePath('/compras');
   redirect('/aprovacoes');
 }
 
