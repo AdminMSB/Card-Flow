@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { PurchaseStatusBadge } from '@/components/status-badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrencyCents, formatDate, formatDateTime } from '@/lib/format';
@@ -40,12 +42,26 @@ interface ComprasTableProps {
 export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [costCenterId, setCostCenterId] = useState('');
+  const [requesterLabel, setRequesterLabel] = useState('');
   const selected = rows.find((row) => row.id === selectedId) ?? null;
+
+  const requesterOptions = useMemo(
+    () => Array.from(new Set(rows.map((row) => row.requesterLabel))).sort((a, b) => a.localeCompare(b)),
+    [rows],
+  );
 
   const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return rows;
     return rows.filter((row) => {
+      if (dateFrom && row.purchase_date < dateFrom) return false;
+      if (dateTo && row.purchase_date > dateTo) return false;
+      if (costCenterId && row.cost_center_id !== costCenterId) return false;
+      if (requesterLabel && row.requesterLabel !== requesterLabel) return false;
+      if (!query) return true;
+
       const haystack = [
         row.requisition_number,
         row.requesterLabel,
@@ -59,17 +75,59 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [rows, search]);
+  }, [rows, search, dateFrom, dateTo, costCenterId, requesterLabel]);
 
   return (
     <>
-      <div className="mb-4">
-        <Input
-          type="search"
-          placeholder="Filtrar por requisição, solicitante, fornecedor, NF ou código de lançamento..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div>
+          <Label htmlFor="compras-filtro-de">De</Label>
+          <Input id="compras-filtro-de" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="compras-filtro-ate">Até</Label>
+          <Input id="compras-filtro-ate" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="compras-filtro-cc">Centro de custo</Label>
+          <Select
+            id="compras-filtro-cc"
+            value={costCenterId}
+            onChange={(event) => setCostCenterId(event.target.value)}
+          >
+            <option value="">Todos</option>
+            {costCenters.map((costCenter) => (
+              <option key={costCenter.id} value={costCenter.id}>
+                {costCenter.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="compras-filtro-solicitante">Solicitante</Label>
+          <Select
+            id="compras-filtro-solicitante"
+            value={requesterLabel}
+            onChange={(event) => setRequesterLabel(event.target.value)}
+          >
+            <option value="">Todos</option>
+            {requesterOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="compras-filtro-busca">Buscar</Label>
+          <Input
+            id="compras-filtro-busca"
+            type="search"
+            placeholder="Requisição, fornecedor, NF, código..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
       </div>
 
       <Table>
