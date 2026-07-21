@@ -15,6 +15,8 @@ const purchaseSchema = z.object({
   purchaseDate: z.string().min(1, 'Informe a data da compra.'),
   amount: z.string().min(1, 'Informe o valor da compra.'),
   merchantName: z.string().trim().min(1, 'Informe o estabelecimento.'),
+  isMarketplacePurchase: z.string(),
+  supplierName: z.string(),
   costCenterId: z.string(),
   description: z.string(),
   requisitionNumber: z.string(),
@@ -34,6 +36,8 @@ function parsePurchaseFields(formData: FormData) {
     purchaseDate: String(formData.get('purchaseDate') ?? ''),
     amount: String(formData.get('amount') ?? ''),
     merchantName: String(formData.get('merchantName') ?? ''),
+    isMarketplacePurchase: String(formData.get('isMarketplacePurchase') ?? ''),
+    supplierName: String(formData.get('supplierName') ?? ''),
     costCenterId: String(formData.get('costCenterId') ?? ''),
     description: String(formData.get('description') ?? ''),
     requisitionNumber: String(formData.get('requisitionNumber') ?? ''),
@@ -51,7 +55,19 @@ function parsePurchaseFields(formData: FormData) {
     fail('Informe um valor válido maior que zero.');
   }
 
-  return { ...parsed.data, amountCents };
+  const isMarketplacePurchase = parsed.data.isMarketplacePurchase === 'on';
+  const supplierName = parsed.data.supplierName.trim();
+  if (isMarketplacePurchase && !supplierName) {
+    fail('Informe o fornecedor real quando a compra for via site/marketplace.');
+  }
+
+  return {
+    ...parsed.data,
+    amountCents,
+    isMarketplacePurchase,
+    // Fora de marketplace, estabelecimento e fornecedor são a mesma informação.
+    resolvedSupplierName: isMarketplacePurchase ? supplierName : parsed.data.merchantName,
+  };
 }
 
 /** Extrai o arquivo de comprovante do FormData, validando tipo e tamanho. Retorna null se nenhum arquivo foi enviado. */
@@ -85,8 +101,8 @@ export async function createPurchase(formData: FormData) {
       purchase_date: fields.purchaseDate,
       amount_cents: fields.amountCents,
       merchant_name: fields.merchantName,
-      // Estabelecimento e fornecedor são a mesma informação nas compras cadastradas pelo site.
-      supplier_name: fields.merchantName,
+      supplier_name: fields.resolvedSupplierName,
+      is_marketplace_purchase: fields.isMarketplacePurchase,
       cost_center_id: fields.costCenterId || null,
       description: fields.description || null,
       requisition_number: fields.requisitionNumber || null,
@@ -164,7 +180,8 @@ export async function updatePurchase(formData: FormData) {
       purchase_date: fields.purchaseDate,
       amount_cents: fields.amountCents,
       merchant_name: fields.merchantName,
-      supplier_name: fields.merchantName,
+      supplier_name: fields.resolvedSupplierName,
+      is_marketplace_purchase: fields.isMarketplacePurchase,
       cost_center_id: fields.costCenterId || null,
       description: fields.description || null,
       requisition_number: fields.requisitionNumber || null,

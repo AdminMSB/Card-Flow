@@ -40,6 +40,8 @@ interface PurchaseRow {
   status: PurchaseStatus;
   user_id: string | null;
   requester_name: string | null;
+  supplier_name: string | null;
+  is_marketplace_purchase: boolean;
   cost_center_id: string | null;
   requisition_number: string | null;
   purchase_order_code: string | null;
@@ -80,7 +82,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
     let detailQuery = supabase
       .from('purchases')
       .select(
-        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, cost_center_id, requisition_number, purchase_order_code',
+        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, is_marketplace_purchase, cost_center_id, requisition_number, purchase_order_code',
       );
     let summaryQuery = supabase.from('purchases').select('amount_cents, status');
 
@@ -256,7 +258,8 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
           <TableRow>
             <TableHead>Data</TableHead>
             <TableHead>Solicitante</TableHead>
-            <TableHead>Estabelecimento / Fornecedor</TableHead>
+            <TableHead>Estabelecimento / Site</TableHead>
+            <TableHead>Fornecedor</TableHead>
             <TableHead>Requisição</TableHead>
             <TableHead>OC</TableHead>
             <TableHead>Centro de custo</TableHead>
@@ -267,7 +270,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
         <TableBody>
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-center text-muted-foreground">
+              <TableCell colSpan={9} className="text-center text-muted-foreground">
                 Nenhum resultado para os filtros selecionados.
               </TableCell>
             </TableRow>
@@ -279,6 +282,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
                   {(row.user_id ? fullNameById.get(row.user_id) : null) ?? row.requester_name ?? '—'}
                 </TableCell>
                 <TableCell>{row.merchant_name}</TableCell>
+                <TableCell>{row.is_marketplace_purchase ? row.supplier_name ?? '—' : '—'}</TableCell>
                 <TableCell>{row.requisition_number ?? '—'}</TableCell>
                 <TableCell>{row.purchase_order_code ?? '—'}</TableCell>
                 <TableCell>

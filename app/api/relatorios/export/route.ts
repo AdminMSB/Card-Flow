@@ -20,6 +20,8 @@ interface PurchaseRow {
   status: PurchaseStatus;
   user_id: string | null;
   requester_name: string | null;
+  supplier_name: string | null;
+  is_marketplace_purchase: boolean;
   cost_center_id: string | null;
   requisition_number: string | null;
   supplier_cnpj: string | null;
@@ -30,6 +32,7 @@ interface PurchaseRow {
 interface ReportLine {
   data: string;
   solicitante: string;
+  estabelecimento: string;
   fornecedor: string;
   cnpjFornecedor: string;
   requisicao: string;
@@ -57,7 +60,7 @@ async function fetchAllMatchingPurchases(
   let query = supabase
     .from('purchases')
     .select(
-      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, cost_center_id, requisition_number, supplier_cnpj, invoice_document_number, purchase_order_code',
+      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, is_marketplace_purchase, cost_center_id, requisition_number, supplier_cnpj, invoice_document_number, purchase_order_code',
     );
 
   if (filters.de) query = query.gte('purchase_date', filters.de);
@@ -100,8 +103,9 @@ async function buildReportLines(
   return rows.map((row) => ({
     data: formatDate(row.purchase_date),
     solicitante: (row.user_id ? fullNameById.get(row.user_id) : null) ?? row.requester_name ?? '—',
-    // Estabelecimento e fornecedor são a mesma informação — mostramos só uma vez.
-    fornecedor: row.merchant_name,
+    estabelecimento: row.merchant_name,
+    // Fornecedor só é distinto do estabelecimento em compras via marketplace (ex.: Mercado Livre).
+    fornecedor: row.is_marketplace_purchase ? row.supplier_name ?? '—' : '—',
     cnpjFornecedor: row.supplier_cnpj ?? '—',
     requisicao: row.requisition_number ?? '—',
     ordemCompra: row.purchase_order_code ?? '—',
@@ -119,7 +123,8 @@ async function buildExcelResponse(lines: ReportLine[]) {
   sheet.columns = [
     { header: 'Data', key: 'data', width: 12 },
     { header: 'Solicitante', key: 'solicitante', width: 28 },
-    { header: 'Estabelecimento/Fornecedor', key: 'fornecedor', width: 28 },
+    { header: 'Estabelecimento/Site', key: 'estabelecimento', width: 28 },
+    { header: 'Fornecedor', key: 'fornecedor', width: 24 },
     { header: 'CNPJ Fornecedor', key: 'cnpjFornecedor', width: 20 },
     { header: 'Requisição', key: 'requisicao', width: 14 },
     { header: 'Nº OC', key: 'ordemCompra', width: 14 },
@@ -137,6 +142,7 @@ async function buildExcelResponse(lines: ReportLine[]) {
       sheet.addRow({
         data: line.data,
         solicitante: line.solicitante,
+        estabelecimento: line.estabelecimento,
         fornecedor: line.fornecedor,
         cnpjFornecedor: line.cnpjFornecedor,
         requisicao: line.requisicao,
@@ -154,14 +160,17 @@ async function buildExcelResponse(lines: ReportLine[]) {
   return workbook.xlsx.writeBuffer();
 }
 
-const PAGE_WIDTH = 595.28; // A4 em pontos
-const PAGE_HEIGHT = 841.89;
+// A4 paisagem para caber a coluna extra de fornecedor (distinto do estabelecimento em
+// compras via marketplace).
+const PAGE_WIDTH = 841.89;
+const PAGE_HEIGHT = 595.28;
 const MARGIN = 40;
 const LINE_HEIGHT = 16;
 
 const COLUMN_ORDER = [
   'data',
   'solicitante',
+  'estabelecimento',
   'fornecedor',
   'requisicao',
   'ordemCompra',
@@ -174,18 +183,20 @@ type ColumnKey = (typeof COLUMN_ORDER)[number];
 const COLUMN_X: Record<ColumnKey, number> = {
   data: MARGIN,
   solicitante: MARGIN + 45,
-  fornecedor: MARGIN + 150,
-  requisicao: MARGIN + 270,
-  ordemCompra: MARGIN + 320,
-  centroCusto: MARGIN + 370,
-  valor: MARGIN + 440,
-  status: MARGIN + 480,
+  estabelecimento: MARGIN + 150,
+  fornecedor: MARGIN + 280,
+  requisicao: MARGIN + 400,
+  ordemCompra: MARGIN + 450,
+  centroCusto: MARGIN + 500,
+  valor: MARGIN + 570,
+  status: MARGIN + 615,
 };
 
 const COLUMN_LABEL: Record<ColumnKey, string> = {
   data: 'Data',
   solicitante: 'Solicitante',
-  fornecedor: 'Estab./Fornecedor',
+  estabelecimento: 'Estab./Site',
+  fornecedor: 'Fornecedor',
   requisicao: 'Requis.',
   ordemCompra: 'OC',
   centroCusto: 'C. Custo',
@@ -195,7 +206,8 @@ const COLUMN_LABEL: Record<ColumnKey, string> = {
 
 const COLUMN_MAX_CHARS: Partial<Record<ColumnKey, number>> = {
   solicitante: 16,
-  fornecedor: 20,
+  estabelecimento: 20,
+  fornecedor: 18,
   requisicao: 8,
   ordemCompra: 8,
   centroCusto: 10,
@@ -215,6 +227,8 @@ function cellText(line: ReportLine, key: ColumnKey): string {
       return line.data;
     case 'solicitante':
       return line.solicitante;
+    case 'estabelecimento':
+      return line.estabelecimento;
     case 'fornecedor':
       return line.fornecedor;
     case 'requisicao':

@@ -28,7 +28,9 @@ export interface PurchaseDefaults {
   cost_center_id: string | null;
   description: string | null;
   requisition_number: string | null;
+  supplier_name: string | null;
   supplier_cnpj: string | null;
+  is_marketplace_purchase: boolean;
   invoice_document_number: string | null;
   purchase_order_code: string | null;
 }
@@ -45,6 +47,7 @@ interface CompraFormProps {
 /** Formulário de compra (criação e edição) exibido dentro de um Dialog. */
 export function CompraForm({ mode, purchase, costCenters, cards, triggerLabel, triggerVariant }: CompraFormProps) {
   const [open, setOpen] = useState(false);
+  const [isMarketplace, setIsMarketplace] = useState(purchase?.is_marketplace_purchase ?? false);
   const action = mode === 'edit' ? updatePurchase : createPurchase;
   const title = mode === 'edit' ? 'Editar compra' : 'Nova compra';
   const defaultAmount = purchase ? (purchase.amount_cents / 100).toFixed(2).replace('.', ',') : '';
@@ -102,7 +105,7 @@ export function CompraForm({ mode, purchase, costCenters, cards, triggerLabel, t
           </div>
 
           <div>
-            <Label htmlFor={`merchantName-${mode}`}>Estabelecimento / Fornecedor</Label>
+            <Label htmlFor={`merchantName-${mode}`}>{isMarketplace ? 'Estabelecimento / Site' : 'Estabelecimento / Fornecedor'}</Label>
             <Input
               id={`merchantName-${mode}`}
               name="merchantName"
@@ -115,6 +118,37 @@ export function CompraForm({ mode, purchase, costCenters, cards, triggerLabel, t
               Como aparece na fatura do cartão — usado para conciliar com a fatura.
             </p>
           </div>
+
+          <div className="flex items-start gap-2">
+            <input
+              id={`isMarketplace-${mode}`}
+              name="isMarketplacePurchase"
+              type="checkbox"
+              checked={isMarketplace}
+              onChange={(event) => setIsMarketplace(event.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-border"
+            />
+            <label htmlFor={`isMarketplace-${mode}`} className="text-sm">
+              Comprado através de um site/marketplace (Mercado Livre, etc.)
+              <span className="block text-xs text-muted-foreground">
+                Marque quando o estabelecimento acima for a plataforma, e não o fornecedor real do produto.
+              </span>
+            </label>
+          </div>
+
+          {isMarketplace && (
+            <div>
+              <Label htmlFor={`supplierName-${mode}`}>Fornecedor real</Label>
+              <Input
+                id={`supplierName-${mode}`}
+                name="supplierName"
+                type="text"
+                placeholder="Ex.: nome da loja/vendedor no Mercado Livre"
+                defaultValue={purchase?.supplier_name ?? ''}
+                required={isMarketplace}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>

@@ -67,7 +67,7 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
               <TableCell>{row.requisition_number ?? '—'}</TableCell>
               <TableCell>{row.requesterLabel}</TableCell>
               <TableCell>{formatDate(row.purchase_date)}</TableCell>
-              <TableCell>{row.merchant_name}</TableCell>
+              <TableCell>{row.supplier_name ?? row.merchant_name}</TableCell>
               <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
             </TableRow>
           ))}
@@ -87,7 +87,14 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
             <div className="flex flex-col">
               <DetailRow label="Data" value={formatDate(selected.purchase_date)} />
               <DetailRow label="Solicitante" value={selected.requesterLabel} />
-              <DetailRow label="Estabelecimento / Fornecedor" value={selected.merchant_name} />
+              {selected.is_marketplace_purchase ? (
+                <>
+                  <DetailRow label="Estabelecimento / Site" value={selected.merchant_name} />
+                  <DetailRow label="Fornecedor real" value={selected.supplier_name ?? '—'} />
+                </>
+              ) : (
+                <DetailRow label="Estabelecimento / Fornecedor" value={selected.merchant_name} />
+              )}
               <DetailRow label="CNPJ do fornecedor" value={selected.supplier_cnpj ?? '—'} />
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
               <DetailRow label="Código de OC" value={selected.purchase_order_code ?? '—'} />
