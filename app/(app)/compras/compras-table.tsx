@@ -46,11 +46,11 @@ export function ComprasTable({ rows, categories, costCenters, cards }: ComprasTa
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
+            <TableHead>Requisição</TableHead>
             <TableHead>Solicitante</TableHead>
-            <TableHead>Estabelecimento</TableHead>
-            <TableHead>Valor</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead>Fornecedor</TableHead>
+            <TableHead>Valor (R$)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -65,13 +65,11 @@ export function ComprasTable({ rows, categories, costCenters, cards }: ComprasTa
                 if (event.key === 'Enter' || event.key === ' ') setSelectedId(row.id);
               }}
             >
-              <TableCell>{formatDate(row.purchase_date)}</TableCell>
+              <TableCell>{row.requisition_number ?? '—'}</TableCell>
               <TableCell>{row.requesterLabel}</TableCell>
-              <TableCell>{row.merchant_name}</TableCell>
+              <TableCell>{formatDate(row.purchase_date)}</TableCell>
+              <TableCell>{row.supplier_name ?? '—'}</TableCell>
               <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
-              <TableCell>
-                <PurchaseStatusBadge status={row.status} />
-              </TableCell>
             </TableRow>
           ))}
           {rows.length === 0 && (
