@@ -1,11 +1,8 @@
 import { requireProfile } from '@/lib/auth';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { formatCurrencyCents, formatDate } from '@/lib/format';
-import { PurchaseStatusBadge } from '@/components/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CompraForm } from './compra-form';
-import { PurchaseRowActions } from './purchase-row-actions';
+import { ComprasTable, type PurchaseListItem } from './compras-table';
 
 export default async function ComprasPage({
   searchParams,
@@ -49,14 +46,26 @@ export default async function ComprasPage({
     requesterFullNameById = new Map((requesterProfiles ?? []).map((requester) => [requester.id, requester.full_name]));
   }
 
-  const rows = await Promise.all(
+  const rows: PurchaseListItem[] = await Promise.all(
     (purchases ?? []).map(async (purchase) => {
       let receiptUrl: string | null = null;
       if (purchase.receipt_path) {
         const { data } = await supabase.storage.from('receipts').createSignedUrl(purchase.receipt_path, 60);
         receiptUrl = data?.signedUrl ?? null;
       }
-      return { ...purchase, receiptUrl };
+      return {
+        ...purchase,
+        receiptUrl,
+        requesterLabel:
+          (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ??
+          purchase.requester_name ??
+          '—',
+        categoryName: purchase.category_id ? categoryMap.get(purchase.category_id) ?? null : null,
+        costCenterName: purchase.cost_center_id ? costCenterMap.get(purchase.cost_center_id) ?? null : null,
+        approvalNotes: purchase.approval_notes,
+        approvedAt: purchase.approved_at,
+        canManage: purchase.user_id === profile.id && purchase.status === 'pending',
+      };
     }),
   );
 
@@ -87,81 +96,7 @@ export default async function ComprasPage({
           <CardTitle>Minhas compras</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Solicitante</TableHead>
-                <TableHead>Estabelecimento</TableHead>
-                <TableHead>Fornecedor</TableHead>
-                <TableHead>Requisição</TableHead>
-                <TableHead>OC</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Centro de custo</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Comprovante</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((purchase) => (
-                <TableRow key={purchase.id}>
-                  <TableCell>{formatDate(purchase.purchase_date)}</TableCell>
-                  <TableCell>
-                    {(purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ??
-                      purchase.requester_name ??
-                      '—'}
-                  </TableCell>
-                  <TableCell>{purchase.merchant_name}</TableCell>
-                  <TableCell>{purchase.supplier_name ?? '—'}</TableCell>
-                  <TableCell>{purchase.requisition_number ?? '—'}</TableCell>
-                  <TableCell>{purchase.purchase_order_code ?? '—'}</TableCell>
-                  <TableCell>{purchase.category_id ? categoryMap.get(purchase.category_id) ?? '—' : '—'}</TableCell>
-                  <TableCell>
-                    {purchase.cost_center_id ? costCenterMap.get(purchase.cost_center_id) ?? '—' : '—'}
-                  </TableCell>
-                  <TableCell>{formatCurrencyCents(purchase.amount_cents)}</TableCell>
-                  <TableCell>
-                    <PurchaseStatusBadge status={purchase.status} />
-                  </TableCell>
-                  <TableCell>
-                    {purchase.receiptUrl ? (
-                      <a
-                        href={purchase.receiptUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary underline"
-                      >
-                        Ver comprovante
-                      </a>
-                    ) : (
-                      '—'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {purchase.user_id === profile.id && purchase.status === 'pending' ? (
-                      <PurchaseRowActions
-                        purchase={purchase}
-                        categories={categories ?? []}
-                        costCenters={costCenters ?? []}
-                        cards={cards}
-                      />
-                    ) : (
-                      '—'
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {rows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={12} className="text-center text-muted-foreground">
-                    Nenhuma compra registrada ainda.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+          <ComprasTable rows={rows} categories={categories ?? []} costCenters={costCenters ?? []} cards={cards} />
         </CardContent>
       </Card>
     </div>
