@@ -76,7 +76,6 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Requisição</TableHead>
-            <TableHead>Solicitante</TableHead>
             <TableHead>Data</TableHead>
             <TableHead>Site</TableHead>
             <TableHead>Fornecedor</TableHead>
@@ -97,7 +96,6 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
               }}
             >
               <TableCell>{row.requisition_number ?? '—'}</TableCell>
-              <TableCell>{row.requesterLabel}</TableCell>
               <TableCell>{formatDate(row.purchase_date)}</TableCell>
               <TableCell>{row.merchant_name && row.merchant_name !== row.supplier_name ? row.merchant_name : '—'}</TableCell>
               <TableCell>{row.supplier_name ?? '—'}</TableCell>
@@ -107,7 +105,7 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
           ))}
           {filteredRows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground">
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
                 {rows.length === 0 ? 'Nenhuma compra registrada ainda.' : 'Nenhuma compra encontrada para esse filtro.'}
               </TableCell>
             </TableRow>
