@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { PurchaseStatusBadge } from '@/components/status-badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrencyCents, formatDate, formatDateTime } from '@/lib/format';
@@ -38,10 +39,39 @@ interface ComprasTableProps {
 /** Tabela resumida de compras; clicar em uma linha abre um painel com todos os detalhes. */
 export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const selected = rows.find((row) => row.id === selectedId) ?? null;
+
+  const filteredRows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return rows;
+    return rows.filter((row) => {
+      const haystack = [
+        row.requisition_number,
+        row.requesterLabel,
+        row.supplier_name,
+        row.merchant_name,
+        row.invoice_document_number,
+        row.purchase_order_code,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [rows, search]);
 
   return (
     <>
+      <div className="mb-4">
+        <Input
+          type="search"
+          placeholder="Filtrar por requisição, solicitante, fornecedor, NF ou código de lançamento..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -49,11 +79,12 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
             <TableHead>Solicitante</TableHead>
             <TableHead>Data</TableHead>
             <TableHead>Fornecedor</TableHead>
+            <TableHead>NF/Fatura/Boleto</TableHead>
             <TableHead>Valor (R$)</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((row) => (
+          {filteredRows.map((row) => (
             <TableRow
               key={row.id}
               onClick={() => setSelectedId(row.id)}
@@ -68,13 +99,14 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
               <TableCell>{row.requesterLabel}</TableCell>
               <TableCell>{formatDate(row.purchase_date)}</TableCell>
               <TableCell>{row.supplier_name ?? row.merchant_name}</TableCell>
+              <TableCell>{row.invoice_document_number ?? '—'}</TableCell>
               <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
             </TableRow>
           ))}
-          {rows.length === 0 && (
+          {filteredRows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
-                Nenhuma compra registrada ainda.
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
+                {rows.length === 0 ? 'Nenhuma compra registrada ainda.' : 'Nenhuma compra encontrada para esse filtro.'}
               </TableCell>
             </TableRow>
           )}
@@ -97,7 +129,7 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
               )}
               <DetailRow label="CNPJ do fornecedor" value={selected.supplier_cnpj ?? '—'} />
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
-              <DetailRow label="Código de OC" value={selected.purchase_order_code ?? '—'} />
+              <DetailRow label="Código de Lançamento" value={selected.purchase_order_code ?? '—'} />
               <DetailRow label="Nº da NF / fatura / boleto" value={selected.invoice_document_number ?? '—'} />
               <DetailRow label="Centro de custo" value={selected.costCenterName ?? '—'} />
               <DetailRow label="Valor" value={formatCurrencyCents(selected.amount_cents)} />

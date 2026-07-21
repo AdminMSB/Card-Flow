@@ -82,7 +82,7 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
               <DetailRow label="Data" value={formatDate(selected.purchase_date)} />
               <DetailRow label="Estabelecimento / Fornecedor" value={selected.merchant_name} />
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
-              <DetailRow label="Código de OC" value={selected.purchase_order_code ?? '—'} />
+              <DetailRow label="Código de Lançamento" value={selected.purchase_order_code ?? '—'} />
               <DetailRow label="Valor" value={formatCurrencyCents(selected.amount_cents)} />
               {selected.description && <DetailRow label="Descrição" value={selected.description} />}
               <DetailRow

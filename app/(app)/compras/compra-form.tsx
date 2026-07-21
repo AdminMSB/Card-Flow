@@ -161,12 +161,12 @@ export function CompraForm({ mode, purchase, costCenters, cards, triggerLabel, t
               />
             </div>
             <div>
-              <Label htmlFor={`purchaseOrderCode-${mode}`}>Código de OC</Label>
+              <Label htmlFor={`purchaseOrderCode-${mode}`}>Código de Lançamento</Label>
               <Input
                 id={`purchaseOrderCode-${mode}`}
                 name="purchaseOrderCode"
                 type="text"
-                placeholder="Ex.: OC012743"
+                placeholder="Ex.: diário de fatura ou ordem de compra"
                 defaultValue={purchase?.purchase_order_code ?? ''}
               />
             </div>

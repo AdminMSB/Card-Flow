@@ -261,7 +261,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
             <TableHead>Estabelecimento / Site</TableHead>
             <TableHead>Fornecedor</TableHead>
             <TableHead>Requisição</TableHead>
-            <TableHead>OC</TableHead>
+            <TableHead>Código de Lançamento</TableHead>
             <TableHead>Centro de custo</TableHead>
             <TableHead>Valor</TableHead>
             <TableHead>Status</TableHead>
