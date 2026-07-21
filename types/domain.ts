@@ -20,12 +20,20 @@ export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Administrador',
 };
 
+// Do ponto de vista de quem registra a compra, só existem 2 estados práticos: aguardando
+// (pendente) ou liberada (aprovada/conciliada). "Rejeitada" continua distinta por ser um
+// desfecho negativo que precisa ficar claro.
 export const PURCHASE_STATUS_LABELS: Record<PurchaseStatus, string> = {
   pending: 'Pendente',
-  approved: 'Aprovada',
+  approved: 'Liberado',
   rejected: 'Rejeitada',
-  reconciled: 'Conciliada',
+  reconciled: 'Liberado',
 };
+
+/** Compra aprovada ou conciliada — já liberada, sem pendência. */
+export function isPurchaseLiberado(status: PurchaseStatus): boolean {
+  return status === 'approved' || status === 'reconciled';
+}
 
 export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
   mapping: 'Aguardando mapeamento',

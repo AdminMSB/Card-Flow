@@ -1,23 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { PurchaseStatusBadge } from '@/components/status-badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrencyCents, formatDate, formatDateTime } from '@/lib/format';
-import { cn } from '@/lib/utils';
-import { PurchaseRowActions } from './purchase-row-actions';
-import type { CardOption, OptionRow, PurchaseDefaults } from './compra-form';
-import { isPurchaseLiberado, type PurchaseStatus } from '@/types/domain';
+import { formatCurrencyCents, formatDate } from '@/lib/format';
+import { approvePurchase } from './actions';
+import { RejeitarDialog } from './rejeitar-dialog';
 
-export interface PurchaseListItem extends PurchaseDefaults {
-  status: PurchaseStatus;
+export interface ApprovalListItem {
+  id: string;
+  purchase_date: string;
+  amount_cents: number;
+  merchant_name: string;
+  description: string | null;
+  requisition_number: string | null;
+  purchase_order_code: string | null;
   requesterLabel: string;
-  costCenterName: string | null;
-  approvalNotes: string | null;
-  approvedAt: string | null;
   receiptUrl: string | null;
-  canManage: boolean;
 }
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -29,14 +29,9 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-interface ComprasTableProps {
-  rows: PurchaseListItem[];
-  costCenters: OptionRow[];
-  cards: CardOption[];
-}
-
-/** Tabela resumida de compras; clicar em uma linha abre um painel com todos os detalhes. */
-export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
+/** Tabela resumida de aprovações pendentes; clicar em uma linha abre um painel com os
+ * detalhes, o comprovante e as ações de aprovar/rejeitar. */
+export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = rows.find((row) => row.id === selectedId) ?? null;
 
@@ -45,11 +40,10 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Requisição</TableHead>
             <TableHead>Solicitante</TableHead>
             <TableHead>Data</TableHead>
-            <TableHead>Fornecedor</TableHead>
-            <TableHead>Valor (R$)</TableHead>
+            <TableHead>Estabelecimento / Fornecedor</TableHead>
+            <TableHead>Valor</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -57,14 +51,13 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
             <TableRow
               key={row.id}
               onClick={() => setSelectedId(row.id)}
-              className={cn('cursor-pointer', isPurchaseLiberado(row.status) && 'bg-success/10')}
+              className="cursor-pointer"
               role="button"
               tabIndex={0}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') setSelectedId(row.id);
               }}
             >
-              <TableCell>{row.requisition_number ?? '—'}</TableCell>
               <TableCell>{row.requesterLabel}</TableCell>
               <TableCell>{formatDate(row.purchase_date)}</TableCell>
               <TableCell>{row.merchant_name}</TableCell>
@@ -73,8 +66,8 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
           ))}
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
-                Nenhuma compra registrada ainda.
+              <TableCell colSpan={4} className="text-center text-muted-foreground">
+                Nenhuma compra pendente de aprovação.
               </TableCell>
             </TableRow>
           )}
@@ -85,21 +78,13 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
         {selected && (
           <>
             <div className="flex flex-col">
-              <DetailRow label="Data" value={formatDate(selected.purchase_date)} />
               <DetailRow label="Solicitante" value={selected.requesterLabel} />
+              <DetailRow label="Data" value={formatDate(selected.purchase_date)} />
               <DetailRow label="Estabelecimento / Fornecedor" value={selected.merchant_name} />
-              <DetailRow label="CNPJ do fornecedor" value={selected.supplier_cnpj ?? '—'} />
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
               <DetailRow label="Código de OC" value={selected.purchase_order_code ?? '—'} />
-              <DetailRow label="Nº da NF / fatura / boleto" value={selected.invoice_document_number ?? '—'} />
-              <DetailRow label="Centro de custo" value={selected.costCenterName ?? '—'} />
               <DetailRow label="Valor" value={formatCurrencyCents(selected.amount_cents)} />
-              <DetailRow label="Status" value={<PurchaseStatusBadge status={selected.status} />} />
               {selected.description && <DetailRow label="Descrição" value={selected.description} />}
-              {selected.approvalNotes && <DetailRow label="Observação da aprovação" value={selected.approvalNotes} />}
-              {selected.approvedAt && (
-                <DetailRow label="Aprovada/rejeitada em" value={formatDateTime(selected.approvedAt)} />
-              )}
               <DetailRow
                 label="Comprovante"
                 value={
@@ -114,11 +99,15 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
               />
             </div>
 
-            {selected.canManage && (
-              <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
-                <PurchaseRowActions purchase={selected} costCenters={costCenters} cards={cards} />
-              </div>
-            )}
+            <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
+              <form action={approvePurchase}>
+                <input type="hidden" name="id" value={selected.id} />
+                <Button type="submit" variant="primary" size="sm">
+                  Aprovar
+                </Button>
+              </form>
+              <RejeitarDialog purchaseId={selected.id} />
+            </div>
           </>
         )}
       </Dialog>

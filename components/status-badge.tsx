@@ -10,7 +10,7 @@ import {
 
 const purchaseTones: Record<PurchaseStatus, BadgeTone> = {
   pending: 'warning',
-  approved: 'info',
+  approved: 'success',
   rejected: 'destructive',
   reconciled: 'success',
 };
