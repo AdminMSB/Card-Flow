@@ -21,7 +21,6 @@ interface PurchaseRow {
   user_id: string | null;
   requester_name: string | null;
   supplier_name: string | null;
-  is_marketplace_purchase: boolean;
   cost_center_id: string | null;
   requisition_number: string | null;
   supplier_cnpj: string | null;
@@ -60,7 +59,7 @@ async function fetchAllMatchingPurchases(
   let query = supabase
     .from('purchases')
     .select(
-      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, is_marketplace_purchase, cost_center_id, requisition_number, supplier_cnpj, invoice_document_number, purchase_order_code',
+      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, cost_center_id, requisition_number, supplier_cnpj, invoice_document_number, purchase_order_code',
     );
 
   if (filters.de) query = query.gte('purchase_date', filters.de);
@@ -103,9 +102,9 @@ async function buildReportLines(
   return rows.map((row) => ({
     data: formatDate(row.purchase_date),
     solicitante: (row.user_id ? fullNameById.get(row.user_id) : null) ?? row.requester_name ?? '—',
-    estabelecimento: row.merchant_name,
-    // Fornecedor só é distinto do estabelecimento em compras via marketplace (ex.: Mercado Livre).
-    fornecedor: row.is_marketplace_purchase ? row.supplier_name ?? '—' : '—',
+    // Site só aparece quando distinto do fornecedor (ex.: compra via Mercado Livre).
+    estabelecimento: row.merchant_name && row.merchant_name !== row.supplier_name ? row.merchant_name : '—',
+    fornecedor: row.supplier_name ?? '—',
     cnpjFornecedor: row.supplier_cnpj ?? '—',
     requisicao: row.requisition_number ?? '—',
     ordemCompra: row.purchase_order_code ?? '—',
@@ -123,7 +122,7 @@ async function buildExcelResponse(lines: ReportLine[]) {
   sheet.columns = [
     { header: 'Data', key: 'data', width: 12 },
     { header: 'Solicitante', key: 'solicitante', width: 28 },
-    { header: 'Estabelecimento/Site', key: 'estabelecimento', width: 28 },
+    { header: 'Site', key: 'estabelecimento', width: 24 },
     { header: 'Fornecedor', key: 'fornecedor', width: 24 },
     { header: 'CNPJ Fornecedor', key: 'cnpjFornecedor', width: 20 },
     { header: 'Requisição', key: 'requisicao', width: 14 },
@@ -195,7 +194,7 @@ const COLUMN_X: Record<ColumnKey, number> = {
 const COLUMN_LABEL: Record<ColumnKey, string> = {
   data: 'Data',
   solicitante: 'Solicitante',
-  estabelecimento: 'Estab./Site',
+  estabelecimento: 'Site',
   fornecedor: 'Fornecedor',
   requisicao: 'Requis.',
   ordemCompra: 'Cód. Lanç.',

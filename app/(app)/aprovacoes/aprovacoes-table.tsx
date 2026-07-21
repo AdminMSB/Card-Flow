@@ -13,6 +13,7 @@ export interface ApprovalListItem {
   purchase_date: string;
   amount_cents: number;
   merchant_name: string;
+  supplier_name: string | null;
   description: string | null;
   requisition_number: string | null;
   purchase_order_code: string | null;
@@ -42,7 +43,7 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
           <TableRow>
             <TableHead>Solicitante</TableHead>
             <TableHead>Data</TableHead>
-            <TableHead>Estabelecimento / Fornecedor</TableHead>
+            <TableHead>Fornecedor</TableHead>
             <TableHead>Valor</TableHead>
           </TableRow>
         </TableHeader>
@@ -60,7 +61,7 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
             >
               <TableCell>{row.requesterLabel}</TableCell>
               <TableCell>{formatDate(row.purchase_date)}</TableCell>
-              <TableCell>{row.merchant_name}</TableCell>
+              <TableCell>{row.supplier_name ?? row.merchant_name}</TableCell>
               <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
             </TableRow>
           ))}
@@ -80,7 +81,11 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
             <div className="flex flex-col">
               <DetailRow label="Solicitante" value={selected.requesterLabel} />
               <DetailRow label="Data" value={formatDate(selected.purchase_date)} />
-              <DetailRow label="Estabelecimento / Fornecedor" value={selected.merchant_name} />
+              <DetailRow
+                label="Site"
+                value={selected.merchant_name && selected.merchant_name !== selected.supplier_name ? selected.merchant_name : '—'}
+              />
+              <DetailRow label="Fornecedor" value={selected.supplier_name ?? '—'} />
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
               <DetailRow label="Código de Lançamento" value={selected.purchase_order_code ?? '—'} />
               <DetailRow label="Valor" value={formatCurrencyCents(selected.amount_cents)} />

@@ -78,6 +78,7 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
             <TableHead>Requisição</TableHead>
             <TableHead>Solicitante</TableHead>
             <TableHead>Data</TableHead>
+            <TableHead>Site</TableHead>
             <TableHead>Fornecedor</TableHead>
             <TableHead>NF/Fatura/Boleto</TableHead>
             <TableHead>Valor (R$)</TableHead>
@@ -98,14 +99,15 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
               <TableCell>{row.requisition_number ?? '—'}</TableCell>
               <TableCell>{row.requesterLabel}</TableCell>
               <TableCell>{formatDate(row.purchase_date)}</TableCell>
-              <TableCell>{row.supplier_name ?? row.merchant_name}</TableCell>
+              <TableCell>{row.merchant_name && row.merchant_name !== row.supplier_name ? row.merchant_name : '—'}</TableCell>
+              <TableCell>{row.supplier_name ?? '—'}</TableCell>
               <TableCell>{row.invoice_document_number ?? '—'}</TableCell>
               <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
             </TableRow>
           ))}
           {filteredRows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-muted-foreground">
+              <TableCell colSpan={7} className="text-center text-muted-foreground">
                 {rows.length === 0 ? 'Nenhuma compra registrada ainda.' : 'Nenhuma compra encontrada para esse filtro.'}
               </TableCell>
             </TableRow>
@@ -119,14 +121,11 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
             <div className="flex flex-col">
               <DetailRow label="Data" value={formatDate(selected.purchase_date)} />
               <DetailRow label="Solicitante" value={selected.requesterLabel} />
-              {selected.is_marketplace_purchase ? (
-                <>
-                  <DetailRow label="Estabelecimento / Site" value={selected.merchant_name} />
-                  <DetailRow label="Fornecedor real" value={selected.supplier_name ?? '—'} />
-                </>
-              ) : (
-                <DetailRow label="Estabelecimento / Fornecedor" value={selected.merchant_name} />
-              )}
+              <DetailRow
+                label="Site"
+                value={selected.merchant_name && selected.merchant_name !== selected.supplier_name ? selected.merchant_name : '—'}
+              />
+              <DetailRow label="Fornecedor" value={selected.supplier_name ?? '—'} />
               <DetailRow label="CNPJ do fornecedor" value={selected.supplier_cnpj ?? '—'} />
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
               <DetailRow label="Código de Lançamento" value={selected.purchase_order_code ?? '—'} />

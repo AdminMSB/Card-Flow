@@ -42,6 +42,7 @@ export default async function AprovacoesPage({
         purchase_date: purchase.purchase_date,
         amount_cents: purchase.amount_cents,
         merchant_name: purchase.merchant_name,
+        supplier_name: purchase.supplier_name,
         description: purchase.description,
         requisition_number: purchase.requisition_number,
         purchase_order_code: purchase.purchase_order_code,

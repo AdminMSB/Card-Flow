@@ -114,7 +114,6 @@ export interface Database {
           requisition_number: string | null;
           supplier_name: string | null;
           supplier_cnpj: string | null;
-          is_marketplace_purchase: boolean;
           invoice_document_number: string | null;
           purchase_order_code: string | null;
           created_at: string;
@@ -140,7 +139,6 @@ export interface Database {
           requisition_number?: string | null;
           supplier_name?: string | null;
           supplier_cnpj?: string | null;
-          is_marketplace_purchase?: boolean;
           invoice_document_number?: string | null;
           purchase_order_code?: string | null;
           created_at?: string;
