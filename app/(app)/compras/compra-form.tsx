@@ -339,7 +339,7 @@ export function CompraForm({
                     id={`invoiceDocumentNumber-${mode}-${index}`}
                     name="invoiceDocumentNumber"
                     type="text"
-                    className="flex-[2]"
+                    className="flex-1"
                     value={row.number}
                     onChange={(event) =>
                       updateDocumentRows(
@@ -351,8 +351,8 @@ export function CompraForm({
                     name="invoiceDocumentAmount"
                     type="text"
                     inputMode="decimal"
-                    placeholder="Valor (opcional)"
-                    className="flex-1"
+                    placeholder="0,00"
+                    className="w-24 shrink-0"
                     value={row.amount}
                     onChange={(event) =>
                       updateDocumentRows(
