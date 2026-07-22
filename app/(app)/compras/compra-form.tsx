@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { parseCurrencyToCents } from '@/lib/format';
 import { createPurchase, updatePurchase } from './actions';
 
 export interface OptionRow {
@@ -25,6 +26,11 @@ export interface CollaboratorOption {
   department_id: string | null;
 }
 
+export interface DocumentItem {
+  documentNumber: string;
+  amountCents: number | null;
+}
+
 export interface PurchaseDefaults {
   id: string;
   card_id: string;
@@ -38,7 +44,14 @@ export interface PurchaseDefaults {
   supplier_name: string | null;
   supplier_cnpj: string | null;
   orderCodes: string[];
-  invoiceDocuments: string[];
+  invoiceDocuments: DocumentItem[];
+}
+
+/** Texto de valor (ex.: "12,34") a partir de centavos, no mesmo formato usado pelos
+ * campos de valor do formulário — vazio quando não há valor. */
+function centsToAmountText(cents: number | null): string {
+  if (cents == null) return '';
+  return (cents / 100).toFixed(2).replace('.', ',');
 }
 
 interface CompraFormProps {
@@ -129,9 +142,17 @@ export function CompraForm({
   const [open, setOpen] = useState(false);
   const [requesterName, setRequesterName] = useState(purchase?.requester_name ?? '');
   const [departmentId, setDepartmentId] = useState(purchase?.department_id ?? '');
+  const [amountText, setAmountText] = useState(centsToAmountText(purchase?.amount_cents ?? null));
+  const [documentRows, setDocumentRows] = useState(
+    purchase && purchase.invoiceDocuments.length > 0
+      ? purchase.invoiceDocuments.map((document) => ({
+          number: document.documentNumber,
+          amount: centsToAmountText(document.amountCents),
+        }))
+      : [{ number: '', amount: '' }],
+  );
   const action = mode === 'edit' ? updatePurchase : createPurchase;
   const title = mode === 'edit' ? 'Editar compra' : 'Nova compra';
-  const defaultAmount = purchase ? (purchase.amount_cents / 100).toFixed(2).replace('.', ',') : '';
   const datalistId = `collaborators-${mode}-${purchase?.id ?? 'new'}`;
 
   // Ao digitar/selecionar um nome já cadastrado em Colaboradores, preenche o Centro de
@@ -141,6 +162,18 @@ export function CompraForm({
     const match = collaborators.find((collaborator) => collaborator.full_name.toLowerCase() === value.trim().toLowerCase());
     if (match) {
       setDepartmentId(match.department_id ?? '');
+    }
+  }
+
+  // O valor da compra é a soma dos documentos anexados, quando algum deles tiver valor
+  // informado — senão fica livre pra digitar (ex.: antes de receber a NF).
+  const amountLocked = documentRows.some((row) => parseCurrencyToCents(row.amount) > 0);
+
+  function updateDocumentRows(next: { number: string; amount: string }[]) {
+    setDocumentRows(next);
+    const sumCents = next.reduce((sum, row) => sum + Math.max(parseCurrencyToCents(row.amount), 0), 0);
+    if (sumCents > 0) {
+      setAmountText(centsToAmountText(sumCents));
     }
   }
 
@@ -209,9 +242,16 @@ export function CompraForm({
                 type="text"
                 inputMode="decimal"
                 placeholder="0,00"
-                defaultValue={defaultAmount}
+                value={amountText}
+                onChange={(event) => setAmountText(event.target.value)}
+                readOnly={amountLocked}
                 required
               />
+              {amountLocked && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Calculado automaticamente como a soma dos documentos abaixo.
+                </p>
+              )}
             </div>
           </div>
 
@@ -290,14 +330,60 @@ export function CompraForm({
             defaultValues={purchase?.orderCodes ?? []}
           />
 
-          <RepeatableInputList
-            key={`invoiceDocumentNumber-${mode}-${purchase?.id ?? 'new'}`}
-            idPrefix={`invoiceDocumentNumber-${mode}`}
-            name="invoiceDocumentNumber"
-            label="Nº da NF / fatura / boleto"
-            addLabel="Adicionar documento"
-            defaultValues={purchase?.invoiceDocuments ?? []}
-          />
+          <div>
+            <Label htmlFor={`invoiceDocumentNumber-${mode}-0`}>Nº da NF / fatura / boleto</Label>
+            <div className="flex flex-col gap-2">
+              {documentRows.map((row, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    id={`invoiceDocumentNumber-${mode}-${index}`}
+                    name="invoiceDocumentNumber"
+                    type="text"
+                    className="flex-[2]"
+                    value={row.number}
+                    onChange={(event) =>
+                      updateDocumentRows(
+                        documentRows.map((item, i) => (i === index ? { ...item, number: event.target.value } : item)),
+                      )
+                    }
+                  />
+                  <Input
+                    name="invoiceDocumentAmount"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Valor (opcional)"
+                    className="flex-1"
+                    value={row.amount}
+                    onChange={(event) =>
+                      updateDocumentRows(
+                        documentRows.map((item, i) => (i === index ? { ...item, amount: event.target.value } : item)),
+                      )
+                    }
+                  />
+                  {documentRows.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      aria-label="Remover"
+                      onClick={() => updateDocumentRows(documentRows.filter((_, i) => i !== index))}
+                    >
+                      ×
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              onClick={() => setDocumentRows([...documentRows, { number: '', amount: '' }])}
+            >
+              + Adicionar documento
+            </Button>
+          </div>
 
           <div>
             <Label htmlFor={`description-${mode}`}>Descrição</Label>

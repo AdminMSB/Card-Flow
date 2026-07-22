@@ -186,12 +186,14 @@ export interface Database {
           id: string;
           purchase_id: string;
           document_number: string;
+          amount_cents: number | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           purchase_id: string;
           document_number: string;
+          amount_cents?: number | null;
           created_at?: string;
         };
         Update: Partial<Database['public']['Tables']['purchase_invoice_documents']['Insert']>;

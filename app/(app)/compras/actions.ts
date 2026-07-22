@@ -28,14 +28,35 @@ function fail(message: string): never {
   redirect(`/compras?error=${encodeURIComponent(message)}`);
 }
 
-/** Uma linha pode ter mais de um lançamento (OC + Diário de Fatura) e mais de um
- * documento (duas NFs pra mesma OC) — os campos chegam como múltiplos valores com o
- * mesmo name (FormData.getAll), aqui só filtramos os em branco. */
+/** Uma linha pode ter mais de um lançamento (OC + Diário de Fatura) — os campos chegam
+ * como múltiplos valores com o mesmo name (FormData.getAll), aqui só filtramos os em
+ * branco. */
 function parseTextList(formData: FormData, name: string): string[] {
   return formData
     .getAll(name)
     .map((value) => String(value).trim())
     .filter((value) => value.length > 0);
+}
+
+interface DocumentRow {
+  documentNumber: string;
+  amountCents: number | null;
+}
+
+/** Uma OC pode ter mais de uma NF anexada, cada uma com seu próprio valor (opcional) —
+ * número e valor chegam em arrays paralelos (mesmo índice = mesma linha do formulário). */
+function parseDocumentRows(formData: FormData): DocumentRow[] {
+  const numbers = formData.getAll('invoiceDocumentNumber').map((value) => String(value).trim());
+  const amounts = formData.getAll('invoiceDocumentAmount').map((value) => String(value).trim());
+
+  const rows: DocumentRow[] = [];
+  numbers.forEach((documentNumber, index) => {
+    if (!documentNumber) return;
+    const amountText = amounts[index] ?? '';
+    const amountCents = amountText ? parseCurrencyToCents(amountText) : 0;
+    rows.push({ documentNumber, amountCents: amountCents > 0 ? amountCents : null });
+  });
+  return rows;
 }
 
 function parsePurchaseFields(formData: FormData) {
@@ -56,7 +77,14 @@ function parsePurchaseFields(formData: FormData) {
     fail(parsed.error.issues[0]?.message ?? 'Dados inválidos.');
   }
 
-  const amountCents = parseCurrencyToCents(parsed.data.amount);
+  const orderCodes = parseTextList(formData, 'purchaseOrderCode');
+  const invoiceDocuments = parseDocumentRows(formData);
+
+  // O valor da compra é a soma dos documentos anexados, quando algum deles tiver valor
+  // informado (a UI já calcula isso e reflete no campo Valor, mas recalculamos aqui como
+  // fonte da verdade — não dá pra confiar só no que o cliente enviou).
+  const documentsTotalCents = invoiceDocuments.reduce((sum, document) => sum + (document.amountCents ?? 0), 0);
+  const amountCents = documentsTotalCents > 0 ? documentsTotalCents : parseCurrencyToCents(parsed.data.amount);
   if (amountCents <= 0) {
     fail('Informe um valor válido maior que zero.');
   }
@@ -64,8 +92,6 @@ function parsePurchaseFields(formData: FormData) {
   // Site é opcional (nem toda compra passa por uma plataforma); quando em branco, o
   // fornecedor é o que efetivamente aparece na fatura do cartão.
   const merchantName = parsed.data.merchantName.trim() || parsed.data.supplierName;
-  const orderCodes = parseTextList(formData, 'purchaseOrderCode');
-  const invoiceDocuments = parseTextList(formData, 'invoiceDocumentNumber');
 
   return { ...parsed.data, amountCents, merchantName, orderCodes, invoiceDocuments };
 }
@@ -76,7 +102,7 @@ async function replaceLineItems(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   purchaseId: string,
   orderCodes: string[],
-  invoiceDocuments: string[],
+  invoiceDocuments: DocumentRow[],
 ) {
   await supabase.from('purchase_order_codes').delete().eq('purchase_id', purchaseId);
   await supabase.from('purchase_invoice_documents').delete().eq('purchase_id', purchaseId);
@@ -87,9 +113,13 @@ async function replaceLineItems(
       .insert(orderCodes.map((code) => ({ purchase_id: purchaseId, code })));
   }
   if (invoiceDocuments.length > 0) {
-    await supabase
-      .from('purchase_invoice_documents')
-      .insert(invoiceDocuments.map((documentNumber) => ({ purchase_id: purchaseId, document_number: documentNumber })));
+    await supabase.from('purchase_invoice_documents').insert(
+      invoiceDocuments.map((document) => ({
+        purchase_id: purchaseId,
+        document_number: document.documentNumber,
+        amount_cents: document.amountCents,
+      })),
+    );
   }
 }
 

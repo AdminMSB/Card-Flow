@@ -67,7 +67,7 @@ export function ComprasTable({ rows, departments, collaborators, cards }: Compra
         row.requesterLabel,
         row.supplier_name,
         row.merchant_name,
-        ...row.invoiceDocuments,
+        ...row.invoiceDocuments.map((document) => document.documentNumber),
         ...row.orderCodes,
       ]
         .filter(Boolean)
@@ -157,7 +157,11 @@ export function ComprasTable({ rows, departments, collaborators, cards }: Compra
               <TableCell>{formatDate(row.purchase_date)}</TableCell>
               <TableCell>{row.merchant_name && row.merchant_name !== row.supplier_name ? row.merchant_name : '—'}</TableCell>
               <TableCell>{row.supplier_name ?? '—'}</TableCell>
-              <TableCell>{row.invoiceDocuments.length > 0 ? row.invoiceDocuments.join(' / ') : '—'}</TableCell>
+              <TableCell>
+                {row.invoiceDocuments.length > 0
+                  ? row.invoiceDocuments.map((document) => document.documentNumber).join(' / ')
+                  : '—'}
+              </TableCell>
               <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
             </TableRow>
           ))}
@@ -190,7 +194,17 @@ export function ComprasTable({ rows, departments, collaborators, cards }: Compra
               />
               <DetailRow
                 label="Nº da NF / fatura / boleto"
-                value={selected.invoiceDocuments.length > 0 ? selected.invoiceDocuments.join(' / ') : '—'}
+                value={
+                  selected.invoiceDocuments.length > 0
+                    ? selected.invoiceDocuments
+                        .map((document) =>
+                          document.amountCents != null
+                            ? `${document.documentNumber} (${formatCurrencyCents(document.amountCents)})`
+                            : document.documentNumber,
+                        )
+                        .join(' / ')
+                    : '—'
+                }
               />
               <DetailRow label="Centro de custo" value={selected.costCenterName ?? '—'} />
               <DetailRow label="Valor" value={formatCurrencyCents(selected.amount_cents)} />
