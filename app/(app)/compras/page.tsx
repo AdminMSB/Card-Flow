@@ -44,14 +44,23 @@ export default async function ComprasPage({
     requesterFullNameById = new Map((requesterProfiles ?? []).map((requester) => [requester.id, requester.full_name]));
   }
 
-  const rows: PurchaseListItem[] = (purchases ?? []).map((purchase) => ({
-    ...purchase,
-    requesterLabel:
-      (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ?? purchase.requester_name ?? '—',
-    costCenterName: purchase.cost_center_id ? costCenterMap.get(purchase.cost_center_id) ?? null : null,
-    approvalNotes: purchase.approval_notes,
-    canManage: purchase.user_id === profile.id && purchase.status === 'pending',
-  }));
+  const isOwnerException = ['gestor', 'financeiro', 'admin'].includes(profile.role);
+
+  const rows: PurchaseListItem[] = (purchases ?? []).map((purchase) => {
+    const isOwner = purchase.user_id === profile.id;
+    const isPending = purchase.status === 'pending';
+    return {
+      ...purchase,
+      requesterLabel:
+        (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ?? purchase.requester_name ?? '—',
+      costCenterName: purchase.cost_center_id ? costCenterMap.get(purchase.cost_center_id) ?? null : null,
+      approvalNotes: purchase.approval_notes,
+      // Editar: quem registrou a compra, ou gestor/financeiro/admin, enquanto pendente.
+      canEdit: isPending && (isOwner || isOwnerException),
+      // Excluir: só quem registrou, enquanto pendente.
+      canDelete: isPending && isOwner,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">

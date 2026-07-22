@@ -141,7 +141,13 @@ export async function updatePurchase(formData: FormData) {
     .single();
 
   if (!existing) fail('Compra não encontrada.');
-  if (existing.user_id !== profile.id || existing.status !== 'pending') {
+
+  // Quem registrou a compra pode editá-la; gestor/financeiro/admin também podem, para
+  // completar/corrigir dados antes de liberar (a RLS ainda restringe o gestor ao setor
+  // do cartão, então uma tentativa fora do escopo dele simplesmente não afeta nenhuma linha).
+  const isOwner = existing.user_id === profile.id;
+  const canEditAnyPending = ['gestor', 'financeiro', 'admin'].includes(profile.role);
+  if (existing.status !== 'pending' || !(isOwner || canEditAnyPending)) {
     fail('Esta compra não pode mais ser editada.');
   }
 
@@ -162,7 +168,7 @@ export async function updatePurchase(formData: FormData) {
     receiptPath = path;
   }
 
-  const { error: updateError } = await supabase
+  const { data: updated, error: updateError } = await supabase
     .from('purchases')
     .update({
       card_id: fields.cardId,
@@ -179,9 +185,13 @@ export async function updatePurchase(formData: FormData) {
       receipt_path: receiptPath,
     })
     .eq('id', id)
-    .eq('status', 'pending');
+    .eq('status', 'pending')
+    .select('id')
+    .maybeSingle();
 
-  if (updateError) fail('Não foi possível atualizar a compra.');
+  // `updated` vem null tanto em erro real quanto quando a RLS silenciosamente não afeta
+  // nenhuma linha (ex.: gestor tentando editar uma compra fora do setor dele).
+  if (updateError || !updated) fail('Não foi possível atualizar a compra.');
 
   revalidatePath('/compras');
   redirect('/compras');

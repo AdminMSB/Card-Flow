@@ -18,7 +18,8 @@ export interface PurchaseListItem extends PurchaseDefaults {
   requesterLabel: string;
   costCenterName: string | null;
   approvalNotes: string | null;
-  canManage: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -191,9 +192,15 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
               {selected.approvalNotes && <DetailRow label="Observação da aprovação" value={selected.approvalNotes} />}
             </div>
 
-            {selected.canManage && (
+            {(selected.canEdit || selected.canDelete) && (
               <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
-                <PurchaseRowActions purchase={selected} costCenters={costCenters} cards={cards} />
+                <PurchaseRowActions
+                  purchase={selected}
+                  costCenters={costCenters}
+                  cards={cards}
+                  canEdit={selected.canEdit}
+                  canDelete={selected.canDelete}
+                />
               </div>
             )}
           </>
