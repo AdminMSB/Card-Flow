@@ -147,6 +147,24 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['purchases']['Insert']>;
         Relationships: [];
       };
+      collaborators: {
+        Row: {
+          id: string;
+          full_name: string;
+          department_id: string | null;
+          email: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          full_name: string;
+          department_id?: string | null;
+          email?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['collaborators']['Insert']>;
+        Relationships: [];
+      };
       purchase_order_codes: {
         Row: {
           id: string;

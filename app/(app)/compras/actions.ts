@@ -12,6 +12,7 @@ const MAX_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
 const purchaseSchema = z.object({
   cardId: z.string().min(1, 'Selecione um cartão.'),
+  requesterName: z.string().trim().min(1, 'Informe o solicitante.'),
   purchaseDate: z.string().min(1, 'Informe a data da compra.'),
   amount: z.string().min(1, 'Informe o valor da compra.'),
   merchantName: z.string(),
@@ -40,6 +41,7 @@ function parseTextList(formData: FormData, name: string): string[] {
 function parsePurchaseFields(formData: FormData) {
   const parsed = purchaseSchema.safeParse({
     cardId: String(formData.get('cardId') ?? ''),
+    requesterName: String(formData.get('requesterName') ?? ''),
     purchaseDate: String(formData.get('purchaseDate') ?? ''),
     amount: String(formData.get('amount') ?? ''),
     merchantName: String(formData.get('merchantName') ?? ''),
@@ -119,6 +121,7 @@ export async function createPurchase(formData: FormData) {
     .insert({
       card_id: fields.cardId,
       user_id: profile.id,
+      requester_name: fields.requesterName,
       purchase_date: fields.purchaseDate,
       amount_cents: fields.amountCents,
       merchant_name: fields.merchantName,
@@ -203,6 +206,7 @@ export async function updatePurchase(formData: FormData) {
     .from('purchases')
     .update({
       card_id: fields.cardId,
+      requester_name: fields.requesterName,
       purchase_date: fields.purchaseDate,
       amount_cents: fields.amountCents,
       merchant_name: fields.merchantName,

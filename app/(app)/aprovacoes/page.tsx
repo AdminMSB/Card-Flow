@@ -50,7 +50,7 @@ export default async function AprovacoesPage({
         requisition_number: purchase.requisition_number,
         orderCodes: orderCodesByPurchaseId.get(purchase.id) ?? [],
         requesterLabel:
-          (purchase.user_id ? requesterMap.get(purchase.user_id) : null) ?? purchase.requester_name ?? '—',
+          purchase.requester_name ?? (purchase.user_id ? requesterMap.get(purchase.user_id) : null) ?? '—',
         receiptUrl,
       };
     }),

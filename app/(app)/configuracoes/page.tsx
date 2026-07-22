@@ -7,12 +7,13 @@ export default async function ConfiguracoesPage() {
   await requireRole('financeiro', 'admin');
   const supabase = await createServerSupabaseClient();
 
-  const [departments, costCenters, categories, cards, users] = await Promise.all([
+  const [departments, costCenters, categories, cards, users, collaborators] = await Promise.all([
     supabase.from('departments').select('*', { count: 'exact', head: true }),
     supabase.from('cost_centers').select('*', { count: 'exact', head: true }),
     supabase.from('categories').select('*', { count: 'exact', head: true }),
     supabase.from('cards').select('*', { count: 'exact', head: true }),
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    supabase.from('collaborators').select('*', { count: 'exact', head: true }),
   ]);
 
   const sections = [
@@ -40,6 +41,11 @@ export default async function ConfiguracoesPage() {
       href: '/configuracoes/usuarios',
       title: 'Usuários',
       description: `${users.count ?? 0} usuário(s) cadastrado(s)`,
+    },
+    {
+      href: '/configuracoes/colaboradores',
+      title: 'Colaboradores',
+      description: `${collaborators.count ?? 0} colaborador(es) cadastrado(s)`,
     },
   ];
 

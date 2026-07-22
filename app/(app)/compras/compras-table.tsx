@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatCurrencyCents, formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { PurchaseRowActions } from './purchase-row-actions';
-import type { CardOption, OptionRow, PurchaseDefaults } from './compra-form';
+import type { CardOption, CollaboratorOption, OptionRow, PurchaseDefaults } from './compra-form';
 import { isPurchaseLiberado, type PurchaseStatus } from '@/types/domain';
 
 export interface PurchaseListItem extends PurchaseDefaults {
@@ -34,11 +34,12 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 interface ComprasTableProps {
   rows: PurchaseListItem[];
   departments: OptionRow[];
+  collaborators: CollaboratorOption[];
   cards: CardOption[];
 }
 
 /** Tabela resumida de compras; clicar em uma linha abre um painel com todos os detalhes. */
-export function ComprasTable({ rows, departments, cards }: ComprasTableProps) {
+export function ComprasTable({ rows, departments, collaborators, cards }: ComprasTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -203,6 +204,7 @@ export function ComprasTable({ rows, departments, cards }: ComprasTableProps) {
                 <PurchaseRowActions
                   purchase={selected}
                   departments={departments}
+                  collaborators={collaborators}
                   cards={cards}
                   canEdit={selected.canEdit}
                   canDelete={selected.canDelete}

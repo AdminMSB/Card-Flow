@@ -19,6 +19,12 @@ export interface CardOption {
   last_four_digits: string;
 }
 
+export interface CollaboratorOption {
+  id: string;
+  full_name: string;
+  department_id: string | null;
+}
+
 export interface PurchaseDefaults {
   id: string;
   card_id: string;
@@ -26,6 +32,7 @@ export interface PurchaseDefaults {
   amount_cents: number;
   merchant_name: string;
   department_id: string | null;
+  requester_name: string | null;
   description: string | null;
   requisition_number: string | null;
   supplier_name: string | null;
@@ -38,6 +45,7 @@ interface CompraFormProps {
   mode: 'create' | 'edit';
   purchase?: PurchaseDefaults;
   departments: OptionRow[];
+  collaborators: CollaboratorOption[];
   cards: CardOption[];
   triggerLabel?: string;
   triggerVariant?: ButtonProps['variant'];
@@ -109,11 +117,32 @@ function RepeatableInputList({
 }
 
 /** Formulário de compra (criação e edição) exibido dentro de um Dialog. */
-export function CompraForm({ mode, purchase, departments, cards, triggerLabel, triggerVariant }: CompraFormProps) {
+export function CompraForm({
+  mode,
+  purchase,
+  departments,
+  collaborators,
+  cards,
+  triggerLabel,
+  triggerVariant,
+}: CompraFormProps) {
   const [open, setOpen] = useState(false);
+  const [requesterName, setRequesterName] = useState(purchase?.requester_name ?? '');
+  const [departmentId, setDepartmentId] = useState(purchase?.department_id ?? '');
   const action = mode === 'edit' ? updatePurchase : createPurchase;
   const title = mode === 'edit' ? 'Editar compra' : 'Nova compra';
   const defaultAmount = purchase ? (purchase.amount_cents / 100).toFixed(2).replace('.', ',') : '';
+  const datalistId = `collaborators-${mode}-${purchase?.id ?? 'new'}`;
+
+  // Ao digitar/selecionar um nome já cadastrado em Colaboradores, preenche o Centro de
+  // Custo dele automaticamente — o usuário ainda pode trocar manualmente depois.
+  function handleRequesterNameChange(value: string) {
+    setRequesterName(value);
+    const match = collaborators.find((collaborator) => collaborator.full_name.toLowerCase() === value.trim().toLowerCase());
+    if (match) {
+      setDepartmentId(match.department_id ?? '');
+    }
+  }
 
   return (
     <>
@@ -140,6 +169,25 @@ export function CompraForm({ mode, purchase, departments, cards, triggerLabel, t
                 </option>
               ))}
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor={`requesterName-${mode}`}>Solicitante</Label>
+            <Input
+              id={`requesterName-${mode}`}
+              name="requesterName"
+              type="text"
+              list={datalistId}
+              placeholder="Nome de quem fez a compra"
+              value={requesterName}
+              onChange={(event) => handleRequesterNameChange(event.target.value)}
+              required
+            />
+            <datalist id={datalistId}>
+              {collaborators.map((collaborator) => (
+                <option key={collaborator.id} value={collaborator.full_name} />
+              ))}
+            </datalist>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -217,7 +265,12 @@ export function CompraForm({ mode, purchase, departments, cards, triggerLabel, t
 
           <div>
             <Label htmlFor={`departmentId-${mode}`}>Centro de custo</Label>
-            <Select id={`departmentId-${mode}`} name="departmentId" defaultValue={purchase?.department_id ?? ''}>
+            <Select
+              id={`departmentId-${mode}`}
+              name="departmentId"
+              value={departmentId}
+              onChange={(event) => setDepartmentId(event.target.value)}
+            >
               <option value="">Sem centro de custo</option>
               {departments.map((department) => (
                 <option key={department.id} value={department.id}>

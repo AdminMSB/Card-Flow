@@ -19,6 +19,10 @@ export default async function ComprasPage({
     .order('purchase_date', { ascending: false });
 
   const { data: departments } = await supabase.from('departments').select('id, name').order('name');
+  const { data: collaborators } = await supabase
+    .from('collaborators')
+    .select('id, full_name, department_id')
+    .order('full_name');
 
   // Cartões visíveis para o formulário: primeiro os próprios cartões ativos; se o usuário
   // não tiver nenhum, caímos para todos os cartões ativos (ex.: cartões "de setor" sem titular fixo).
@@ -60,7 +64,7 @@ export default async function ComprasPage({
       orderCodes: orderCodesByPurchaseId.get(purchase.id) ?? [],
       invoiceDocuments: invoiceDocumentsByPurchaseId.get(purchase.id) ?? [],
       requesterLabel:
-        (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ?? purchase.requester_name ?? '—',
+        purchase.requester_name ?? (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ?? '—',
       costCenterName: purchase.department_id ? departmentMap.get(purchase.department_id) ?? null : null,
       approvalNotes: purchase.approval_notes,
       // Editar: quem registrou a compra, ou gestor/financeiro/admin, enquanto pendente.
@@ -77,7 +81,9 @@ export default async function ComprasPage({
           <h1 className="text-2xl font-semibold">Compras</h1>
           <p className="text-sm text-muted-foreground">Registre e acompanhe as despesas do cartão corporativo.</p>
         </div>
-        {cards.length > 0 && <CompraForm mode="create" departments={departments ?? []} cards={cards} />}
+        {cards.length > 0 && (
+          <CompraForm mode="create" departments={departments ?? []} collaborators={collaborators ?? []} cards={cards} />
+        )}
       </div>
 
       {searchParams.error && <p className="text-sm text-destructive">{searchParams.error}</p>}
@@ -95,7 +101,12 @@ export default async function ComprasPage({
           <CardTitle>Minhas compras</CardTitle>
         </CardHeader>
         <CardContent>
-          <ComprasTable rows={rows} departments={departments ?? []} cards={cards} />
+          <ComprasTable
+            rows={rows}
+            departments={departments ?? []}
+            collaborators={collaborators ?? []}
+            cards={cards}
+          />
         </CardContent>
       </Card>
     </div>

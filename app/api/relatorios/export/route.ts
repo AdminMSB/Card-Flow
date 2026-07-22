@@ -102,7 +102,7 @@ async function buildReportLines(
 
   return rows.map((row) => ({
     data: formatDate(row.purchase_date),
-    solicitante: (row.user_id ? fullNameById.get(row.user_id) : null) ?? row.requester_name ?? '—',
+    solicitante: row.requester_name ?? (row.user_id ? fullNameById.get(row.user_id) : null) ?? '—',
     // Site só aparece quando distinto do fornecedor (ex.: compra via Mercado Livre).
     estabelecimento: row.merchant_name && row.merchant_name !== row.supplier_name ? row.merchant_name : '—',
     fornecedor: row.supplier_name ?? '—',

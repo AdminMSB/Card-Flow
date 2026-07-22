@@ -269,7 +269,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
               <TableRow key={row.id}>
                 <TableCell>{formatDate(row.purchase_date)}</TableCell>
                 <TableCell>
-                  {(row.user_id ? fullNameById.get(row.user_id) : null) ?? row.requester_name ?? '—'}
+                  {row.requester_name ?? (row.user_id ? fullNameById.get(row.user_id) : null) ?? '—'}
                 </TableCell>
                 <TableCell>{row.merchant_name && row.merchant_name !== row.supplier_name ? row.merchant_name : '—'}</TableCell>
                 <TableCell>{row.supplier_name ?? '—'}</TableCell>
