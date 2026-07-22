@@ -25,7 +25,7 @@ export interface PurchaseDefaults {
   purchase_date: string;
   amount_cents: number;
   merchant_name: string;
-  cost_center_id: string | null;
+  department_id: string | null;
   description: string | null;
   requisition_number: string | null;
   supplier_name: string | null;
@@ -37,14 +37,14 @@ export interface PurchaseDefaults {
 interface CompraFormProps {
   mode: 'create' | 'edit';
   purchase?: PurchaseDefaults;
-  costCenters: OptionRow[];
+  departments: OptionRow[];
   cards: CardOption[];
   triggerLabel?: string;
   triggerVariant?: ButtonProps['variant'];
 }
 
 /** Formulário de compra (criação e edição) exibido dentro de um Dialog. */
-export function CompraForm({ mode, purchase, costCenters, cards, triggerLabel, triggerVariant }: CompraFormProps) {
+export function CompraForm({ mode, purchase, departments, cards, triggerLabel, triggerVariant }: CompraFormProps) {
   const [open, setOpen] = useState(false);
   const action = mode === 'edit' ? updatePurchase : createPurchase;
   const title = mode === 'edit' ? 'Editar compra' : 'Nova compra';
@@ -162,12 +162,12 @@ export function CompraForm({ mode, purchase, costCenters, cards, triggerLabel, t
               />
             </div>
             <div>
-              <Label htmlFor={`costCenterId-${mode}`}>Centro de custo</Label>
-              <Select id={`costCenterId-${mode}`} name="costCenterId" defaultValue={purchase?.cost_center_id ?? ''}>
+              <Label htmlFor={`departmentId-${mode}`}>Centro de custo</Label>
+              <Select id={`departmentId-${mode}`} name="departmentId" defaultValue={purchase?.department_id ?? ''}>
                 <option value="">Sem centro de custo</option>
-                {costCenters.map((costCenter) => (
-                  <option key={costCenter.id} value={costCenter.id}>
-                    {costCenter.name}
+                {departments.map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
                   </option>
                 ))}
               </Select>

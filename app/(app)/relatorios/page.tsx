@@ -41,7 +41,7 @@ interface PurchaseRow {
   user_id: string | null;
   requester_name: string | null;
   supplier_name: string | null;
-  cost_center_id: string | null;
+  department_id: string | null;
   requisition_number: string | null;
   purchase_order_code: string | null;
 }
@@ -57,10 +57,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
   const rawStatus = paramString(searchParams.status);
   const status = isPurchaseStatus(rawStatus) ? rawStatus : undefined;
 
-  const [{ data: departments }, { data: costCenters }] = await Promise.all([
-    supabase.from('departments').select('id, name').order('name'),
-    supabase.from('cost_centers').select('id, name, code').order('name'),
-  ]);
+  const { data: departments } = await supabase.from('departments').select('id, name').order('name');
 
   // Filtro por setor: uma compra pode ter o setor direto (`department_id`, usado em dados
   // importados de um cartão compartilhado por vários setores) ou herdado do setor do
@@ -81,7 +78,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
     let detailQuery = supabase
       .from('purchases')
       .select(
-        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, cost_center_id, requisition_number, purchase_order_code',
+        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, department_id, requisition_number, purchase_order_code',
       );
     let summaryQuery = supabase.from('purchases').select('amount_cents, status');
 
@@ -94,8 +91,8 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
       summaryQuery = summaryQuery.lte('purchase_date', ate);
     }
     if (costCenterId) {
-      detailQuery = detailQuery.eq('cost_center_id', costCenterId);
-      summaryQuery = summaryQuery.eq('cost_center_id', costCenterId);
+      detailQuery = detailQuery.eq('department_id', costCenterId);
+      summaryQuery = summaryQuery.eq('department_id', costCenterId);
     }
     if (status) {
       detailQuery = detailQuery.eq('status', status);
@@ -116,25 +113,16 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
     allMatching = summaryData ?? [];
   }
 
-  // Nomes de centro de custo/solicitante são resolvidos em lote (sem embutir joins no
-  // select do Postgrest, já que o tipo `Database` não declara `Relationships`).
-  const costCenterIdsInRows = Array.from(
-    new Set(rows.map((row) => row.cost_center_id).filter((id): id is string => !!id)),
-  );
+  // Nome do solicitante é resolvido em lote (sem embutir joins no select do Postgrest, já
+  // que o tipo `Database` não declara `Relationships`). Centro de custo reutiliza `departments`,
+  // já que são o mesmo conceito.
   const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id)));
 
-  const [{ data: costCentersForRows }, { data: profilesData }] = await Promise.all([
-    costCenterIdsInRows.length
-      ? supabase.from('cost_centers').select('id, name, code').in('id', costCenterIdsInRows)
-      : Promise.resolve({ data: [] as { id: string; name: string; code: string }[] }),
-    userIds.length
-      ? supabase.from('profiles').select('id, full_name').in('id', userIds)
-      : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
-  ]);
+  const { data: profilesData } = userIds.length
+    ? await supabase.from('profiles').select('id, full_name').in('id', userIds)
+    : { data: [] as { id: string; full_name: string }[] };
 
-  const costCenterNameById = new Map(
-    (costCentersForRows ?? []).map((costCenter) => [costCenter.id, `${costCenter.name} (${costCenter.code})`]),
-  );
+  const costCenterNameById = new Map((departments ?? []).map((department) => [department.id, department.name]));
   const fullNameById = new Map((profilesData ?? []).map((profile) => [profile.id, profile.full_name]));
 
   const totalItens = allMatching.length;
@@ -191,9 +179,9 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
               <Label htmlFor="cost_center_id">Centro de custo</Label>
               <Select id="cost_center_id" name="cost_center_id" defaultValue={costCenterId ?? ''}>
                 <option value="">Todos</option>
-                {(costCenters ?? []).map((costCenter) => (
-                  <option key={costCenter.id} value={costCenter.id}>
-                    {costCenter.name} ({costCenter.code})
+                {(departments ?? []).map((department) => (
+                  <option key={department.id} value={department.id}>
+                    {department.name}
                   </option>
                 ))}
               </Select>
@@ -285,7 +273,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
                 <TableCell>{row.requisition_number ?? '—'}</TableCell>
                 <TableCell>{row.purchase_order_code ?? '—'}</TableCell>
                 <TableCell>
-                  {row.cost_center_id ? costCenterNameById.get(row.cost_center_id) ?? '—' : '—'}
+                  {row.department_id ? costCenterNameById.get(row.department_id) ?? '—' : '—'}
                 </TableCell>
                 <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
                 <TableCell>

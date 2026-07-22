@@ -21,7 +21,7 @@ interface PurchaseRow {
   user_id: string | null;
   requester_name: string | null;
   supplier_name: string | null;
-  cost_center_id: string | null;
+  department_id: string | null;
   requisition_number: string | null;
   supplier_cnpj: string | null;
   invoice_document_number: string | null;
@@ -59,12 +59,12 @@ async function fetchAllMatchingPurchases(
   let query = supabase
     .from('purchases')
     .select(
-      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, cost_center_id, requisition_number, supplier_cnpj, invoice_document_number, purchase_order_code',
+      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, department_id, requisition_number, supplier_cnpj, invoice_document_number, purchase_order_code',
     );
 
   if (filters.de) query = query.gte('purchase_date', filters.de);
   if (filters.ate) query = query.lte('purchase_date', filters.ate);
-  if (filters.costCenterId) query = query.eq('cost_center_id', filters.costCenterId);
+  if (filters.costCenterId) query = query.eq('department_id', filters.costCenterId);
   if (filters.status) query = query.eq('status', filters.status);
   if (filters.departmentId) {
     const cardFilter = cardIdsForDepartment.length ? `,card_id.in.(${cardIdsForDepartment.join(',')})` : '';
@@ -75,28 +75,27 @@ async function fetchAllMatchingPurchases(
   return data ?? [];
 }
 
-/** Resolve nomes de centro de custo/solicitante em lote para as linhas encontradas. */
+/** Resolve nomes de centro de custo/solicitante em lote para as linhas encontradas. Centro de
+ * custo reutiliza `departments`, já que são o mesmo conceito. */
 async function buildReportLines(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   rows: PurchaseRow[],
 ): Promise<ReportLine[]> {
-  const costCenterIds = Array.from(
-    new Set(rows.map((row) => row.cost_center_id).filter((id): id is string => !!id)),
+  const departmentIds = Array.from(
+    new Set(rows.map((row) => row.department_id).filter((id): id is string => !!id)),
   );
   const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id)));
 
-  const [{ data: costCentersData }, { data: profilesData }] = await Promise.all([
-    costCenterIds.length
-      ? supabase.from('cost_centers').select('id, name, code').in('id', costCenterIds)
-      : Promise.resolve({ data: [] as { id: string; name: string; code: string }[] }),
+  const [{ data: departmentsData }, { data: profilesData }] = await Promise.all([
+    departmentIds.length
+      ? supabase.from('departments').select('id, name').in('id', departmentIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
     userIds.length
       ? supabase.from('profiles').select('id, full_name').in('id', userIds)
       : Promise.resolve({ data: [] as { id: string; full_name: string }[] }),
   ]);
 
-  const costCenterNameById = new Map(
-    (costCentersData ?? []).map((costCenter) => [costCenter.id, `${costCenter.name} (${costCenter.code})`]),
-  );
+  const costCenterNameById = new Map((departmentsData ?? []).map((department) => [department.id, department.name]));
   const fullNameById = new Map((profilesData ?? []).map((profile) => [profile.id, profile.full_name]));
 
   return rows.map((row) => ({
@@ -109,7 +108,7 @@ async function buildReportLines(
     requisicao: row.requisition_number ?? '—',
     ordemCompra: row.purchase_order_code ?? '—',
     notaFiscal: row.invoice_document_number ?? '—',
-    centroCusto: row.cost_center_id ? costCenterNameById.get(row.cost_center_id) ?? '—' : '—',
+    centroCusto: row.department_id ? costCenterNameById.get(row.department_id) ?? '—' : '—',
     valorCents: row.amount_cents,
     status: PURCHASE_STATUS_LABELS[row.status],
   }));

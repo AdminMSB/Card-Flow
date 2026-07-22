@@ -33,17 +33,17 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 interface ComprasTableProps {
   rows: PurchaseListItem[];
-  costCenters: OptionRow[];
+  departments: OptionRow[];
   cards: CardOption[];
 }
 
 /** Tabela resumida de compras; clicar em uma linha abre um painel com todos os detalhes. */
-export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
+export function ComprasTable({ rows, departments, cards }: ComprasTableProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [costCenterId, setCostCenterId] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
   const [requesterLabel, setRequesterLabel] = useState('');
   const selected = rows.find((row) => row.id === selectedId) ?? null;
 
@@ -57,7 +57,7 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
     return rows.filter((row) => {
       if (dateFrom && row.purchase_date < dateFrom) return false;
       if (dateTo && row.purchase_date > dateTo) return false;
-      if (costCenterId && row.cost_center_id !== costCenterId) return false;
+      if (departmentId && row.department_id !== departmentId) return false;
       if (requesterLabel && row.requesterLabel !== requesterLabel) return false;
       if (!query) return true;
 
@@ -74,7 +74,7 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [rows, search, dateFrom, dateTo, costCenterId, requesterLabel]);
+  }, [rows, search, dateFrom, dateTo, departmentId, requesterLabel]);
 
   return (
     <>
@@ -91,13 +91,13 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
           <Label htmlFor="compras-filtro-cc">Centro de custo</Label>
           <Select
             id="compras-filtro-cc"
-            value={costCenterId}
-            onChange={(event) => setCostCenterId(event.target.value)}
+            value={departmentId}
+            onChange={(event) => setDepartmentId(event.target.value)}
           >
             <option value="">Todos</option>
-            {costCenters.map((costCenter) => (
-              <option key={costCenter.id} value={costCenter.id}>
-                {costCenter.name}
+            {departments.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
               </option>
             ))}
           </Select>
@@ -196,7 +196,7 @@ export function ComprasTable({ rows, costCenters, cards }: ComprasTableProps) {
               <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
                 <PurchaseRowActions
                   purchase={selected}
-                  costCenters={costCenters}
+                  departments={departments}
                   cards={cards}
                   canEdit={selected.canEdit}
                   canDelete={selected.canDelete}

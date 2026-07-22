@@ -17,7 +17,7 @@ export default async function ComprasPage({
     .select('*')
     .order('purchase_date', { ascending: false });
 
-  const { data: costCenters } = await supabase.from('cost_centers').select('id, name').order('name');
+  const { data: departments } = await supabase.from('departments').select('id, name').order('name');
 
   // Cartões visíveis para o formulário: primeiro os próprios cartões ativos; se o usuário
   // não tiver nenhum, caímos para todos os cartões ativos (ex.: cartões "de setor" sem titular fixo).
@@ -33,7 +33,7 @@ export default async function ComprasPage({
     cards = activeCards ?? [];
   }
 
-  const costCenterMap = new Map((costCenters ?? []).map((costCenter) => [costCenter.id, costCenter.name]));
+  const departmentMap = new Map((departments ?? []).map((department) => [department.id, department.name]));
 
   const requesterIds = Array.from(
     new Set((purchases ?? []).map((purchase) => purchase.user_id).filter((id): id is string => !!id)),
@@ -53,7 +53,7 @@ export default async function ComprasPage({
       ...purchase,
       requesterLabel:
         (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ?? purchase.requester_name ?? '—',
-      costCenterName: purchase.cost_center_id ? costCenterMap.get(purchase.cost_center_id) ?? null : null,
+      costCenterName: purchase.department_id ? departmentMap.get(purchase.department_id) ?? null : null,
       approvalNotes: purchase.approval_notes,
       // Editar: quem registrou a compra, ou gestor/financeiro/admin, enquanto pendente.
       canEdit: isPending && (isOwner || isOwnerException),
@@ -69,7 +69,7 @@ export default async function ComprasPage({
           <h1 className="text-2xl font-semibold">Compras</h1>
           <p className="text-sm text-muted-foreground">Registre e acompanhe as despesas do cartão corporativo.</p>
         </div>
-        {cards.length > 0 && <CompraForm mode="create" costCenters={costCenters ?? []} cards={cards} />}
+        {cards.length > 0 && <CompraForm mode="create" departments={departments ?? []} cards={cards} />}
       </div>
 
       {searchParams.error && <p className="text-sm text-destructive">{searchParams.error}</p>}
@@ -87,7 +87,7 @@ export default async function ComprasPage({
           <CardTitle>Minhas compras</CardTitle>
         </CardHeader>
         <CardContent>
-          <ComprasTable rows={rows} costCenters={costCenters ?? []} cards={cards} />
+          <ComprasTable rows={rows} departments={departments ?? []} cards={cards} />
         </CardContent>
       </Card>
     </div>
