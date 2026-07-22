@@ -1,5 +1,6 @@
 import { requireRole } from '@/lib/auth';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { fetchPurchaseLineItems } from '@/lib/purchase-line-items';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AprovacoesTable, type ApprovalListItem } from './aprovacoes-table';
 
@@ -30,6 +31,8 @@ export default async function AprovacoesPage({
 
   const requesterMap = new Map(requesters.map((requester) => [requester.id, requester.full_name]));
 
+  const { orderCodesByPurchaseId } = await fetchPurchaseLineItems(supabase, purchases ?? []);
+
   const rows: ApprovalListItem[] = await Promise.all(
     (purchases ?? []).map(async (purchase) => {
       let receiptUrl: string | null = null;
@@ -45,7 +48,7 @@ export default async function AprovacoesPage({
         supplier_name: purchase.supplier_name,
         description: purchase.description,
         requisition_number: purchase.requisition_number,
-        purchase_order_code: purchase.purchase_order_code,
+        orderCodes: orderCodesByPurchaseId.get(purchase.id) ?? [],
         requesterLabel:
           (purchase.user_id ? requesterMap.get(purchase.user_id) : null) ?? purchase.requester_name ?? '—',
         receiptUrl,

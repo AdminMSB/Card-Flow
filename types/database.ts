@@ -147,6 +147,38 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['purchases']['Insert']>;
         Relationships: [];
       };
+      purchase_order_codes: {
+        Row: {
+          id: string;
+          purchase_id: string;
+          code: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          purchase_id: string;
+          code: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['purchase_order_codes']['Insert']>;
+        Relationships: [];
+      };
+      purchase_invoice_documents: {
+        Row: {
+          id: string;
+          purchase_id: string;
+          document_number: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          purchase_id: string;
+          document_number: string;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['purchase_invoice_documents']['Insert']>;
+        Relationships: [];
+      };
       invoices: {
         Row: {
           id: string;

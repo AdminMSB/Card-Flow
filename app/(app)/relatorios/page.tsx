@@ -1,5 +1,6 @@
 import { requireRole } from '@/lib/auth';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { fetchPurchaseLineItems } from '@/lib/purchase-line-items';
 import { formatCurrencyCents, formatDate } from '@/lib/format';
 import { PurchaseStatusBadge } from '@/components/status-badge';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ interface PurchaseRow {
   department_id: string | null;
   requisition_number: string | null;
   purchase_order_code: string | null;
+  invoice_document_number: string | null;
 }
 
 export default async function RelatoriosPage({ searchParams }: RelatoriosPageProps) {
@@ -78,7 +80,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
     let detailQuery = supabase
       .from('purchases')
       .select(
-        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, department_id, requisition_number, purchase_order_code',
+        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, department_id, requisition_number, purchase_order_code, invoice_document_number',
       );
     let summaryQuery = supabase.from('purchases').select('amount_cents, status');
 
@@ -124,6 +126,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
 
   const costCenterNameById = new Map((departments ?? []).map((department) => [department.id, department.name]));
   const fullNameById = new Map((profilesData ?? []).map((profile) => [profile.id, profile.full_name]));
+  const { orderCodesByPurchaseId } = await fetchPurchaseLineItems(supabase, rows);
 
   const totalItens = allMatching.length;
   const totalCents = allMatching.reduce((total, row) => total + row.amount_cents, 0);
@@ -271,7 +274,9 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
                 <TableCell>{row.merchant_name && row.merchant_name !== row.supplier_name ? row.merchant_name : '—'}</TableCell>
                 <TableCell>{row.supplier_name ?? '—'}</TableCell>
                 <TableCell>{row.requisition_number ?? '—'}</TableCell>
-                <TableCell>{row.purchase_order_code ?? '—'}</TableCell>
+                <TableCell>
+                  {(orderCodesByPurchaseId.get(row.id) ?? []).join(' / ') || '—'}
+                </TableCell>
                 <TableCell>
                   {row.department_id ? costCenterNameById.get(row.department_id) ?? '—' : '—'}
                 </TableCell>

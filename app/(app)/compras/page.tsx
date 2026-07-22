@@ -1,5 +1,6 @@
 import { requireProfile } from '@/lib/auth';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { fetchPurchaseLineItems } from '@/lib/purchase-line-items';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CompraForm } from './compra-form';
 import { ComprasTable, type PurchaseListItem } from './compras-table';
@@ -46,11 +47,18 @@ export default async function ComprasPage({
 
   const isOwnerException = ['gestor', 'financeiro', 'admin'].includes(profile.role);
 
+  const { orderCodesByPurchaseId, invoiceDocumentsByPurchaseId } = await fetchPurchaseLineItems(
+    supabase,
+    purchases ?? [],
+  );
+
   const rows: PurchaseListItem[] = (purchases ?? []).map((purchase) => {
     const isOwner = purchase.user_id === profile.id;
     const isPending = purchase.status === 'pending';
     return {
       ...purchase,
+      orderCodes: orderCodesByPurchaseId.get(purchase.id) ?? [],
+      invoiceDocuments: invoiceDocumentsByPurchaseId.get(purchase.id) ?? [],
       requesterLabel:
         (purchase.user_id ? requesterFullNameById.get(purchase.user_id) : null) ?? purchase.requester_name ?? '—',
       costCenterName: purchase.department_id ? departmentMap.get(purchase.department_id) ?? null : null,

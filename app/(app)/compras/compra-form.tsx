@@ -30,8 +30,8 @@ export interface PurchaseDefaults {
   requisition_number: string | null;
   supplier_name: string | null;
   supplier_cnpj: string | null;
-  invoice_document_number: string | null;
-  purchase_order_code: string | null;
+  orderCodes: string[];
+  invoiceDocuments: string[];
 }
 
 interface CompraFormProps {
@@ -41,6 +41,71 @@ interface CompraFormProps {
   cards: CardOption[];
   triggerLabel?: string;
   triggerVariant?: ButtonProps['variant'];
+}
+
+/** Lista de campos de texto com "+ adicionar" / "×" remover — usada para os lançamentos
+ * (OC/Diário de Fatura) e os documentos (NF/fatura/boleto) de uma compra, já que uma
+ * linha pode ter mais de um de cada. FormData.getAll(name) recolhe todos os valores. */
+function RepeatableInputList({
+  name,
+  label,
+  placeholder,
+  defaultValues,
+  addLabel,
+  idPrefix,
+}: {
+  name: string;
+  label: string;
+  placeholder?: string;
+  defaultValues: string[];
+  addLabel: string;
+  idPrefix: string;
+}) {
+  const [values, setValues] = useState<string[]>(defaultValues.length > 0 ? defaultValues : ['']);
+
+  return (
+    <div>
+      <Label htmlFor={`${idPrefix}-0`}>{label}</Label>
+      <div className="flex flex-col gap-2">
+        {values.map((value, index) => (
+          <div key={index} className="flex gap-2">
+            <Input
+              id={`${idPrefix}-${index}`}
+              name={name}
+              type="text"
+              placeholder={placeholder}
+              value={value}
+              onChange={(event) => {
+                const next = [...values];
+                next[index] = event.target.value;
+                setValues(next);
+              }}
+            />
+            {values.length > 1 && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                aria-label="Remover"
+                onClick={() => setValues(values.filter((_, i) => i !== index))}
+              >
+                ×
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        className="mt-2"
+        onClick={() => setValues([...values, ''])}
+      >
+        + {addLabel}
+      </Button>
+    </div>
+  );
 }
 
 /** Formulário de compra (criação e edição) exibido dentro de um Dialog. */
@@ -139,19 +204,6 @@ export function CompraForm({ mode, purchase, departments, cards, triggerLabel, t
               />
             </div>
             <div>
-              <Label htmlFor={`purchaseOrderCode-${mode}`}>Código de Lançamento</Label>
-              <Input
-                id={`purchaseOrderCode-${mode}`}
-                name="purchaseOrderCode"
-                type="text"
-                placeholder="Ex.: diário de fatura ou ordem de compra"
-                defaultValue={purchase?.purchase_order_code ?? ''}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
               <Label htmlFor={`supplierCnpj-${mode}`}>CNPJ do fornecedor</Label>
               <Input
                 id={`supplierCnpj-${mode}`}
@@ -161,28 +213,38 @@ export function CompraForm({ mode, purchase, departments, cards, triggerLabel, t
                 defaultValue={purchase?.supplier_cnpj ?? ''}
               />
             </div>
-            <div>
-              <Label htmlFor={`departmentId-${mode}`}>Centro de custo</Label>
-              <Select id={`departmentId-${mode}`} name="departmentId" defaultValue={purchase?.department_id ?? ''}>
-                <option value="">Sem centro de custo</option>
-                {departments.map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
           </div>
 
           <div>
-            <Label htmlFor={`invoiceDocumentNumber-${mode}`}>Nº da NF / fatura / boleto</Label>
-            <Input
-              id={`invoiceDocumentNumber-${mode}`}
-              name="invoiceDocumentNumber"
-              type="text"
-              defaultValue={purchase?.invoice_document_number ?? ''}
-            />
+            <Label htmlFor={`departmentId-${mode}`}>Centro de custo</Label>
+            <Select id={`departmentId-${mode}`} name="departmentId" defaultValue={purchase?.department_id ?? ''}>
+              <option value="">Sem centro de custo</option>
+              {departments.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </Select>
           </div>
+
+          <RepeatableInputList
+            key={`purchaseOrderCode-${mode}-${purchase?.id ?? 'new'}`}
+            idPrefix={`purchaseOrderCode-${mode}`}
+            name="purchaseOrderCode"
+            label="Código de Lançamento"
+            placeholder="Ex.: diário de fatura ou ordem de compra"
+            addLabel="Adicionar lançamento"
+            defaultValues={purchase?.orderCodes ?? []}
+          />
+
+          <RepeatableInputList
+            key={`invoiceDocumentNumber-${mode}-${purchase?.id ?? 'new'}`}
+            idPrefix={`invoiceDocumentNumber-${mode}`}
+            name="invoiceDocumentNumber"
+            label="Nº da NF / fatura / boleto"
+            addLabel="Adicionar documento"
+            defaultValues={purchase?.invoiceDocuments ?? []}
+          />
 
           <div>
             <Label htmlFor={`description-${mode}`}>Descrição</Label>

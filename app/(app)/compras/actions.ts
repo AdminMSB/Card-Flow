@@ -19,14 +19,22 @@ const purchaseSchema = z.object({
   departmentId: z.string(),
   description: z.string(),
   requisitionNumber: z.string(),
-  purchaseOrderCode: z.string(),
   supplierCnpj: z.string(),
-  invoiceDocumentNumber: z.string(),
 });
 
 /** Redireciona para /compras com uma mensagem de erro amigável na query string. */
 function fail(message: string): never {
   redirect(`/compras?error=${encodeURIComponent(message)}`);
+}
+
+/** Uma linha pode ter mais de um lançamento (OC + Diário de Fatura) e mais de um
+ * documento (duas NFs pra mesma OC) — os campos chegam como múltiplos valores com o
+ * mesmo name (FormData.getAll), aqui só filtramos os em branco. */
+function parseTextList(formData: FormData, name: string): string[] {
+  return formData
+    .getAll(name)
+    .map((value) => String(value).trim())
+    .filter((value) => value.length > 0);
 }
 
 function parsePurchaseFields(formData: FormData) {
@@ -39,9 +47,7 @@ function parsePurchaseFields(formData: FormData) {
     departmentId: String(formData.get('departmentId') ?? ''),
     description: String(formData.get('description') ?? ''),
     requisitionNumber: String(formData.get('requisitionNumber') ?? ''),
-    purchaseOrderCode: String(formData.get('purchaseOrderCode') ?? ''),
     supplierCnpj: String(formData.get('supplierCnpj') ?? ''),
-    invoiceDocumentNumber: String(formData.get('invoiceDocumentNumber') ?? ''),
   });
 
   if (!parsed.success) {
@@ -56,8 +62,33 @@ function parsePurchaseFields(formData: FormData) {
   // Site é opcional (nem toda compra passa por uma plataforma); quando em branco, o
   // fornecedor é o que efetivamente aparece na fatura do cartão.
   const merchantName = parsed.data.merchantName.trim() || parsed.data.supplierName;
+  const orderCodes = parseTextList(formData, 'purchaseOrderCode');
+  const invoiceDocuments = parseTextList(formData, 'invoiceDocumentNumber');
 
-  return { ...parsed.data, amountCents, merchantName };
+  return { ...parsed.data, amountCents, merchantName, orderCodes, invoiceDocuments };
+}
+
+/** Substitui a lista de lançamentos/documentos de uma compra pelas listas atuais do
+ * formulário (mais simples que diffar linha a linha, e o volume por compra é pequeno). */
+async function replaceLineItems(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  purchaseId: string,
+  orderCodes: string[],
+  invoiceDocuments: string[],
+) {
+  await supabase.from('purchase_order_codes').delete().eq('purchase_id', purchaseId);
+  await supabase.from('purchase_invoice_documents').delete().eq('purchase_id', purchaseId);
+
+  if (orderCodes.length > 0) {
+    await supabase
+      .from('purchase_order_codes')
+      .insert(orderCodes.map((code) => ({ purchase_id: purchaseId, code })));
+  }
+  if (invoiceDocuments.length > 0) {
+    await supabase
+      .from('purchase_invoice_documents')
+      .insert(invoiceDocuments.map((documentNumber) => ({ purchase_id: purchaseId, document_number: documentNumber })));
+  }
 }
 
 /** Extrai o arquivo de comprovante do FormData, validando tipo e tamanho. Retorna null se nenhum arquivo foi enviado. */
@@ -95,9 +126,7 @@ export async function createPurchase(formData: FormData) {
       department_id: fields.departmentId || null,
       description: fields.description || null,
       requisition_number: fields.requisitionNumber || null,
-      purchase_order_code: fields.purchaseOrderCode || null,
       supplier_cnpj: fields.supplierCnpj || null,
-      invoice_document_number: fields.invoiceDocumentNumber || null,
     })
     .select('id')
     .single();
@@ -105,6 +134,8 @@ export async function createPurchase(formData: FormData) {
   if (insertError || !inserted) {
     fail('Não foi possível registrar a compra. Tente novamente.');
   }
+
+  await replaceLineItems(supabase, inserted.id, fields.orderCodes, fields.invoiceDocuments);
 
   // Só faz upload depois que a compra foi criada com sucesso (evita comprovante "órfão").
   if (file) {
@@ -179,9 +210,7 @@ export async function updatePurchase(formData: FormData) {
       department_id: fields.departmentId || null,
       description: fields.description || null,
       requisition_number: fields.requisitionNumber || null,
-      purchase_order_code: fields.purchaseOrderCode || null,
       supplier_cnpj: fields.supplierCnpj || null,
-      invoice_document_number: fields.invoiceDocumentNumber || null,
       receipt_path: receiptPath,
     })
     .eq('id', id)
@@ -192,6 +221,8 @@ export async function updatePurchase(formData: FormData) {
   // `updated` vem null tanto em erro real quanto quando a RLS silenciosamente não afeta
   // nenhuma linha (ex.: gestor tentando editar uma compra fora do setor dele).
   if (updateError || !updated) fail('Não foi possível atualizar a compra.');
+
+  await replaceLineItems(supabase, id, fields.orderCodes, fields.invoiceDocuments);
 
   revalidatePath('/compras');
   redirect('/compras');

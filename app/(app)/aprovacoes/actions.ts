@@ -11,10 +11,6 @@ function fail(message: string): never {
   redirect(`/aprovacoes?error=${encodeURIComponent(message)}`);
 }
 
-const approveSchema = z.object({
-  purchaseOrderCode: z.string().trim().min(1, 'Informe o código da OC ou Diário de Fatura.'),
-});
-
 export async function approvePurchase(formData: FormData) {
   const profile = await requireRole('gestor', 'financeiro', 'admin');
   const supabase = await createServerSupabaseClient();
@@ -22,9 +18,22 @@ export async function approvePurchase(formData: FormData) {
   const id = String(formData.get('id') ?? '');
   if (!id) fail('Compra inválida.');
 
-  const parsed = approveSchema.safeParse({ purchaseOrderCode: String(formData.get('purchaseOrderCode') ?? '') });
-  if (!parsed.success) {
-    fail(parsed.error.issues[0]?.message ?? 'Informe o código da OC ou Diário de Fatura.');
+  const newCode = String(formData.get('purchaseOrderCode') ?? '').trim();
+
+  // A compra pode já ter lançamento registrado no cadastro/edição (uma linha pode ter OC
+  // e Diário de Fatura); só exigimos um aqui se ainda não existir nenhum.
+  const { count: existingCodeCount } = await supabase
+    .from('purchase_order_codes')
+    .select('id', { count: 'exact', head: true })
+    .eq('purchase_id', id);
+
+  if (!newCode && !existingCodeCount) {
+    fail('Informe o código da OC ou Diário de Fatura.');
+  }
+
+  if (newCode) {
+    const { error: codeError } = await supabase.from('purchase_order_codes').insert({ purchase_id: id, code: newCode });
+    if (codeError) fail('Não foi possível registrar o código de lançamento.');
   }
 
   // RLS garante que só um gestor/financeiro/admin com visibilidade sobre a compra
@@ -36,7 +45,6 @@ export async function approvePurchase(formData: FormData) {
       approved_by: profile.id,
       approved_at: new Date().toISOString(),
       approval_notes: null,
-      purchase_order_code: parsed.data.purchaseOrderCode,
     })
     .eq('id', id)
     .eq('status', 'pending');

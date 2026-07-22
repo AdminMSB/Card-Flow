@@ -15,7 +15,7 @@ export interface ApprovalListItem {
   supplier_name: string | null;
   description: string | null;
   requisition_number: string | null;
-  purchase_order_code: string | null;
+  orderCodes: string[];
   requesterLabel: string;
   receiptUrl: string | null;
 }
@@ -86,7 +86,10 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
               />
               <DetailRow label="Fornecedor" value={selected.supplier_name ?? '—'} />
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
-              <DetailRow label="Código de Lançamento" value={selected.purchase_order_code ?? '—'} />
+              <DetailRow
+                label="Código de Lançamento"
+                value={selected.orderCodes.length > 0 ? selected.orderCodes.join(' / ') : '—'}
+              />
               <DetailRow label="Valor" value={formatCurrencyCents(selected.amount_cents)} />
               {selected.description && <DetailRow label="Descrição" value={selected.description} />}
               <DetailRow
@@ -104,7 +107,7 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
             </div>
 
             <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
-              <AprovarDialog purchaseId={selected.id} defaultValue={selected.purchase_order_code} />
+              <AprovarDialog purchaseId={selected.id} existingCodes={selected.orderCodes} />
               <RejeitarDialog purchaseId={selected.id} />
             </div>
           </>

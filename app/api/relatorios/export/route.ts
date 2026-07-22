@@ -3,6 +3,7 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { NextResponse, type NextRequest } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { fetchPurchaseLineItems } from '@/lib/purchase-line-items';
 import { formatCurrencyCents, formatDate } from '@/lib/format';
 import { PURCHASE_STATUS_LABELS, type PurchaseStatus } from '@/types/domain';
 
@@ -97,6 +98,7 @@ async function buildReportLines(
 
   const costCenterNameById = new Map((departmentsData ?? []).map((department) => [department.id, department.name]));
   const fullNameById = new Map((profilesData ?? []).map((profile) => [profile.id, profile.full_name]));
+  const { orderCodesByPurchaseId, invoiceDocumentsByPurchaseId } = await fetchPurchaseLineItems(supabase, rows);
 
   return rows.map((row) => ({
     data: formatDate(row.purchase_date),
@@ -106,8 +108,8 @@ async function buildReportLines(
     fornecedor: row.supplier_name ?? '—',
     cnpjFornecedor: row.supplier_cnpj ?? '—',
     requisicao: row.requisition_number ?? '—',
-    ordemCompra: row.purchase_order_code ?? '—',
-    notaFiscal: row.invoice_document_number ?? '—',
+    ordemCompra: (orderCodesByPurchaseId.get(row.id) ?? []).join(' / ') || '—',
+    notaFiscal: (invoiceDocumentsByPurchaseId.get(row.id) ?? []).join(' / ') || '—',
     centroCusto: row.department_id ? costCenterNameById.get(row.department_id) ?? '—' : '—',
     valorCents: row.amount_cents,
     status: PURCHASE_STATUS_LABELS[row.status],
