@@ -44,19 +44,25 @@ interface DocumentRow {
 }
 
 /** Uma OC pode ter mais de uma NF anexada, cada uma com seu próprio valor (opcional) —
- * número e valor chegam em arrays paralelos (mesmo índice = mesma linha do formulário). */
-function parseDocumentRows(formData: FormData): DocumentRow[] {
+ * número e valor chegam em arrays paralelos (mesmo índice = mesma linha do formulário).
+ * Uma linha sem número de documento é descartada — mesmo que tenha valor preenchido,
+ * já que não há como salvar/exibir esse valor sem um documento pra associar. */
+function parseDocumentRows(formData: FormData): { rows: DocumentRow[]; hasOrphanAmount: boolean } {
   const numbers = formData.getAll('invoiceDocumentNumber').map((value) => String(value).trim());
   const amounts = formData.getAll('invoiceDocumentAmount').map((value) => String(value).trim());
 
   const rows: DocumentRow[] = [];
+  let hasOrphanAmount = false;
   numbers.forEach((documentNumber, index) => {
-    if (!documentNumber) return;
     const amountText = amounts[index] ?? '';
     const amountCents = amountText ? parseCurrencyToCents(amountText) : 0;
+    if (!documentNumber) {
+      if (amountCents > 0) hasOrphanAmount = true;
+      return;
+    }
     rows.push({ documentNumber, amountCents: amountCents > 0 ? amountCents : null });
   });
-  return rows;
+  return { rows, hasOrphanAmount };
 }
 
 function parsePurchaseFields(formData: FormData) {
@@ -78,7 +84,10 @@ function parsePurchaseFields(formData: FormData) {
   }
 
   const orderCodes = parseTextList(formData, 'purchaseOrderCode');
-  const invoiceDocuments = parseDocumentRows(formData);
+  const { rows: invoiceDocuments, hasOrphanAmount } = parseDocumentRows(formData);
+  if (hasOrphanAmount) {
+    fail('Informe o número do documento para o valor preenchido (ou apague o valor).');
+  }
 
   // O valor da compra é a soma dos documentos anexados, quando algum deles tiver valor
   // informado (a UI já calcula isso e reflete no campo Valor, mas recalculamos aqui como
@@ -104,22 +113,30 @@ async function replaceLineItems(
   orderCodes: string[],
   invoiceDocuments: DocumentRow[],
 ) {
-  await supabase.from('purchase_order_codes').delete().eq('purchase_id', purchaseId);
-  await supabase.from('purchase_invoice_documents').delete().eq('purchase_id', purchaseId);
+  const { error: deleteCodesError } = await supabase.from('purchase_order_codes').delete().eq('purchase_id', purchaseId);
+  const { error: deleteDocsError } = await supabase
+    .from('purchase_invoice_documents')
+    .delete()
+    .eq('purchase_id', purchaseId);
+  if (deleteCodesError || deleteDocsError) {
+    fail('Não foi possível atualizar os lançamentos/documentos da compra.');
+  }
 
   if (orderCodes.length > 0) {
-    await supabase
+    const { error } = await supabase
       .from('purchase_order_codes')
       .insert(orderCodes.map((code) => ({ purchase_id: purchaseId, code })));
+    if (error) fail('Não foi possível salvar os lançamentos (OC/Diário de Fatura).');
   }
   if (invoiceDocuments.length > 0) {
-    await supabase.from('purchase_invoice_documents').insert(
+    const { error } = await supabase.from('purchase_invoice_documents').insert(
       invoiceDocuments.map((document) => ({
         purchase_id: purchaseId,
         document_number: document.documentNumber,
         amount_cents: document.amountCents,
       })),
     );
+    if (error) fail('Não foi possível salvar os documentos (NF/fatura/boleto).');
   }
 }
 
