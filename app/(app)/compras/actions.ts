@@ -15,6 +15,8 @@ const purchaseSchema = z.object({
   requesterName: z.string().trim().min(1, 'Informe o solicitante.'),
   purchaseDate: z.string().min(1, 'Informe a data da compra.'),
   amount: z.string().min(1, 'Informe o valor da compra.'),
+  discount: z.string(),
+  surcharge: z.string(),
   merchantName: z.string(),
   supplierName: z.string().trim().min(1, 'Informe o fornecedor.'),
   departmentId: z.string(),
@@ -72,6 +74,8 @@ function parsePurchaseFields(formData: FormData) {
     requesterName: String(formData.get('requesterName') ?? ''),
     purchaseDate: String(formData.get('purchaseDate') ?? ''),
     amount: String(formData.get('amount') ?? ''),
+    discount: String(formData.get('discount') ?? ''),
+    surcharge: String(formData.get('surcharge') ?? ''),
     merchantName: String(formData.get('merchantName') ?? ''),
     supplierName: String(formData.get('supplierName') ?? ''),
     departmentId: String(formData.get('departmentId') ?? ''),
@@ -104,9 +108,14 @@ function parsePurchaseFields(formData: FormData) {
 
   // O valor da compra é a soma dos documentos anexados, quando algum deles tiver valor
   // informado (a UI já calcula isso e reflete no campo Valor, mas recalculamos aqui como
-  // fonte da verdade — não dá pra confiar só no que o cliente enviou).
+  // fonte da verdade — não dá pra confiar só no que o cliente enviou), ajustada por
+  // desconto/acréscimo — a fatura do cartão pode vir com esse valor líquido/bruto
+  // diferente do que a NF ou os documentos somam.
   const documentsTotalCents = invoiceDocuments.reduce((sum, document) => sum + (document.amountCents ?? 0), 0);
-  const amountCents = documentsTotalCents > 0 ? documentsTotalCents : parseCurrencyToCents(parsed.data.amount);
+  const baseAmountCents = documentsTotalCents > 0 ? documentsTotalCents : parseCurrencyToCents(parsed.data.amount);
+  const discountCents = parsed.data.discount ? parseCurrencyToCents(parsed.data.discount) : 0;
+  const surchargeCents = parsed.data.surcharge ? parseCurrencyToCents(parsed.data.surcharge) : 0;
+  const amountCents = baseAmountCents - discountCents + surchargeCents;
   if (amountCents <= 0) {
     fail('Informe um valor válido maior que zero.');
   }
@@ -115,7 +124,7 @@ function parsePurchaseFields(formData: FormData) {
   // fornecedor é o que efetivamente aparece na fatura do cartão.
   const merchantName = parsed.data.merchantName.trim() || parsed.data.supplierName;
 
-  return { ...parsed.data, amountCents, merchantName, orderCodes, invoiceDocuments };
+  return { ...parsed.data, amountCents, discountCents, surchargeCents, merchantName, orderCodes, invoiceDocuments };
 }
 
 /** Substitui a lista de lançamentos/documentos de uma compra pelas listas atuais do
@@ -188,6 +197,8 @@ export async function createPurchase(formData: FormData) {
       requester_name: fields.requesterName,
       purchase_date: fields.purchaseDate,
       amount_cents: fields.amountCents,
+      discount_cents: fields.discountCents,
+      surcharge_cents: fields.surchargeCents,
       merchant_name: fields.merchantName,
       supplier_name: fields.supplierName,
       department_id: fields.departmentId || null,
@@ -273,6 +284,8 @@ export async function updatePurchase(formData: FormData) {
       requester_name: fields.requesterName,
       purchase_date: fields.purchaseDate,
       amount_cents: fields.amountCents,
+      discount_cents: fields.discountCents,
+      surcharge_cents: fields.surchargeCents,
       merchant_name: fields.merchantName,
       supplier_name: fields.supplierName,
       department_id: fields.departmentId || null,

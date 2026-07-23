@@ -102,6 +102,8 @@ export interface Database {
           department_id: string | null;
           purchase_date: string;
           amount_cents: number;
+          discount_cents: number;
+          surcharge_cents: number;
           merchant_name: string;
           category_id: string | null;
           cost_center_id: string | null;
@@ -127,6 +129,8 @@ export interface Database {
           department_id?: string | null;
           purchase_date: string;
           amount_cents: number;
+          discount_cents?: number;
+          surcharge_cents?: number;
           merchant_name: string;
           category_id?: string | null;
           cost_center_id?: string | null;

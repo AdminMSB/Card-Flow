@@ -217,6 +217,12 @@ export function ComprasTable({ rows, departments, collaborators, cards }: Compra
                 }
               />
               <DetailRow label="Centro de custo" value={selected.costCenterName ?? '—'} />
+              {selected.discount_cents > 0 && (
+                <DetailRow label="Desconto" value={formatCurrencyCents(selected.discount_cents)} />
+              )}
+              {selected.surcharge_cents > 0 && (
+                <DetailRow label="Acréscimo" value={formatCurrencyCents(selected.surcharge_cents)} />
+              )}
               <DetailRow label="Valor" value={formatCurrencyCents(selected.amount_cents)} />
               <DetailRow label="Status" value={<PurchaseStatusBadge status={selected.status} />} />
               {selected.description && <DetailRow label="Descrição" value={selected.description} />}

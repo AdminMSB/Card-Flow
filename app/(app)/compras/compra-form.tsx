@@ -41,6 +41,8 @@ export interface PurchaseDefaults {
   card_id: string;
   purchase_date: string;
   amount_cents: number;
+  discount_cents: number;
+  surcharge_cents: number;
   merchant_name: string;
   department_id: string | null;
   requester_name: string | null;
@@ -83,6 +85,8 @@ export function CompraForm({
   const [requesterName, setRequesterName] = useState(purchase?.requester_name ?? '');
   const [departmentId, setDepartmentId] = useState(purchase?.department_id ?? '');
   const [amountText, setAmountText] = useState(centsToAmountText(purchase?.amount_cents ?? null));
+  const [discountText, setDiscountText] = useState(centsToAmountText(purchase?.discount_cents || null));
+  const [surchargeText, setSurchargeText] = useState(centsToAmountText(purchase?.surcharge_cents || null));
   const [orderCodeRows, setOrderCodeRows] = useState(
     purchase && purchase.orderCodes.length > 0
       ? purchase.orderCodes.map((item) => ({ code: item.code, amount: centsToAmountText(item.amountCents) }))
@@ -110,16 +114,32 @@ export function CompraForm({
     }
   }
 
-  // O valor da compra é a soma dos documentos anexados, quando algum deles tiver valor
-  // informado — senão fica livre pra digitar (ex.: antes de receber a NF).
+  // O valor da compra é a soma dos documentos anexados (ajustada por desconto/acréscimo),
+  // quando algum documento tiver valor informado — senão fica livre pra digitar (ex.:
+  // antes de receber a NF).
   const amountLocked = documentRows.some((row) => parseCurrencyToCents(row.amount) > 0);
+
+  function recomputeAmount(rows: { amount: string }[], discount: string, surcharge: string) {
+    const sumCents = rows.reduce((sum, row) => sum + Math.max(parseCurrencyToCents(row.amount), 0), 0);
+    if (sumCents > 0) {
+      const adjusted = sumCents - parseCurrencyToCents(discount) + parseCurrencyToCents(surcharge);
+      setAmountText(centsToAmountText(Math.max(adjusted, 0)));
+    }
+  }
 
   function updateDocumentRows(next: { number: string; amount: string }[]) {
     setDocumentRows(next);
-    const sumCents = next.reduce((sum, row) => sum + Math.max(parseCurrencyToCents(row.amount), 0), 0);
-    if (sumCents > 0) {
-      setAmountText(centsToAmountText(sumCents));
-    }
+    recomputeAmount(next, discountText, surchargeText);
+  }
+
+  function handleDiscountChange(value: string) {
+    setDiscountText(value);
+    recomputeAmount(documentRows, value, surchargeText);
+  }
+
+  function handleSurchargeChange(value: string) {
+    setSurchargeText(value);
+    recomputeAmount(documentRows, discountText, value);
   }
 
   return (
@@ -194,9 +214,36 @@ export function CompraForm({
               />
               {amountLocked && (
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Calculado automaticamente como a soma dos documentos abaixo.
+                  Calculado automaticamente como a soma dos documentos, menos desconto e mais acréscimo.
                 </p>
               )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor={`discount-${mode}`}>Desconto</Label>
+              <Input
+                id={`discount-${mode}`}
+                name="discount"
+                type="text"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={discountText}
+                onChange={(event) => handleDiscountChange(event.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor={`surcharge-${mode}`}>Acréscimo</Label>
+              <Input
+                id={`surcharge-${mode}`}
+                name="surcharge"
+                type="text"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={surchargeText}
+                onChange={(event) => handleSurchargeChange(event.target.value)}
+              />
             </div>
           </div>
 
