@@ -335,31 +335,33 @@ export function CompraForm({
             <div className="flex flex-col gap-2">
               {documentRows.map((row, index) => (
                 <div key={index} className="flex gap-2">
-                  <Input
-                    id={`invoiceDocumentNumber-${mode}-${index}`}
-                    name="invoiceDocumentNumber"
-                    type="text"
-                    className="flex-1"
-                    value={row.number}
-                    onChange={(event) =>
-                      updateDocumentRows(
-                        documentRows.map((item, i) => (i === index ? { ...item, number: event.target.value } : item)),
-                      )
-                    }
-                  />
-                  <Input
-                    name="invoiceDocumentAmount"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0,00"
-                    className="w-24 shrink-0"
-                    value={row.amount}
-                    onChange={(event) =>
-                      updateDocumentRows(
-                        documentRows.map((item, i) => (i === index ? { ...item, amount: event.target.value } : item)),
-                      )
-                    }
-                  />
+                  <div className="flex-1">
+                    <Input
+                      id={`invoiceDocumentNumber-${mode}-${index}`}
+                      name="invoiceDocumentNumber"
+                      type="text"
+                      value={row.number}
+                      onChange={(event) =>
+                        updateDocumentRows(
+                          documentRows.map((item, i) => (i === index ? { ...item, number: event.target.value } : item)),
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="w-24 shrink-0">
+                    <Input
+                      name="invoiceDocumentAmount"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={row.amount}
+                      onChange={(event) =>
+                        updateDocumentRows(
+                          documentRows.map((item, i) => (i === index ? { ...item, amount: event.target.value } : item)),
+                        )
+                      }
+                    />
+                  </div>
                   {documentRows.length > 1 && (
                     <Button
                       type="button"
