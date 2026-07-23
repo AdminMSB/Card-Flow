@@ -275,7 +275,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
                 <TableCell>{row.supplier_name ?? '—'}</TableCell>
                 <TableCell>{row.requisition_number ?? '—'}</TableCell>
                 <TableCell>
-                  {(orderCodesByPurchaseId.get(row.id) ?? []).map((item) => item.code).join(' / ') || '—'}
+                  {(orderCodesByPurchaseId.get(row.id) ?? []).join(' / ') || '—'}
                 </TableCell>
                 <TableCell>
                   {row.department_id ? costCenterNameById.get(row.department_id) ?? '—' : '—'}

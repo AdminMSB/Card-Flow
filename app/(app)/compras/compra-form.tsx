@@ -26,11 +26,6 @@ export interface CollaboratorOption {
   department_id: string | null;
 }
 
-export interface OrderCodeItem {
-  code: string;
-  amountCents: number | null;
-}
-
 export interface DocumentItem {
   documentNumber: string;
   amountCents: number | null;
@@ -50,7 +45,7 @@ export interface PurchaseDefaults {
   requisition_number: string | null;
   supplier_name: string | null;
   supplier_cnpj: string | null;
-  orderCodes: OrderCodeItem[];
+  orderCodes: string[];
   invoiceDocuments: DocumentItem[];
 }
 
@@ -87,10 +82,8 @@ export function CompraForm({
   const [amountText, setAmountText] = useState(centsToAmountText(purchase?.amount_cents ?? null));
   const [discountText, setDiscountText] = useState(centsToAmountText(purchase?.discount_cents || null));
   const [surchargeText, setSurchargeText] = useState(centsToAmountText(purchase?.surcharge_cents || null));
-  const [orderCodeRows, setOrderCodeRows] = useState(
-    purchase && purchase.orderCodes.length > 0
-      ? purchase.orderCodes.map((item) => ({ code: item.code, amount: centsToAmountText(item.amountCents) }))
-      : [{ code: '', amount: '' }],
+  const [orderCodes, setOrderCodes] = useState<string[]>(
+    purchase && purchase.orderCodes.length > 0 ? purchase.orderCodes : [''],
   );
   const [documentRows, setDocumentRows] = useState(
     purchase && purchase.invoiceDocuments.length > 0
@@ -315,43 +308,25 @@ export function CompraForm({
           <div>
             <Label htmlFor={`purchaseOrderCode-${mode}-0`}>Código de Lançamento</Label>
             <div className="flex flex-col gap-2">
-              {orderCodeRows.map((row, index) => (
+              {orderCodes.map((code, index) => (
                 <div key={index} className="flex gap-2">
-                  <div className="flex-1">
-                    <Input
-                      id={`purchaseOrderCode-${mode}-${index}`}
-                      name="purchaseOrderCode"
-                      type="text"
-                      placeholder="Ex.: diário de fatura ou ordem de compra"
-                      value={row.code}
-                      onChange={(event) =>
-                        setOrderCodeRows(
-                          orderCodeRows.map((item, i) => (i === index ? { ...item, code: event.target.value } : item)),
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="w-24 shrink-0">
-                    <Input
-                      name="purchaseOrderCodeAmount"
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      value={row.amount}
-                      onChange={(event) =>
-                        setOrderCodeRows(
-                          orderCodeRows.map((item, i) => (i === index ? { ...item, amount: event.target.value } : item)),
-                        )
-                      }
-                    />
-                  </div>
-                  {orderCodeRows.length > 1 && (
+                  <Input
+                    id={`purchaseOrderCode-${mode}-${index}`}
+                    name="purchaseOrderCode"
+                    type="text"
+                    placeholder="Ex.: diário de fatura ou ordem de compra"
+                    value={code}
+                    onChange={(event) =>
+                      setOrderCodes(orderCodes.map((item, i) => (i === index ? event.target.value : item)))
+                    }
+                  />
+                  {orderCodes.length > 1 && (
                     <Button
                       type="button"
                       variant="secondary"
                       size="sm"
                       aria-label="Remover"
-                      onClick={() => setOrderCodeRows(orderCodeRows.filter((_, i) => i !== index))}
+                      onClick={() => setOrderCodes(orderCodes.filter((_, i) => i !== index))}
                     >
                       ×
                     </Button>
@@ -359,16 +334,12 @@ export function CompraForm({
                 </div>
               ))}
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Valor total da NF (com IPI) — separado do Valor da compra, que segue o que
-              aparece na fatura do cartão.
-            </p>
             <Button
               type="button"
               variant="secondary"
               size="sm"
               className="mt-2"
-              onClick={() => setOrderCodeRows([...orderCodeRows, { code: '', amount: '' }])}
+              onClick={() => setOrderCodes([...orderCodes, ''])}
             >
               + Adicionar lançamento
             </Button>

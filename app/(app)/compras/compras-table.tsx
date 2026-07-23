@@ -68,7 +68,7 @@ export function ComprasTable({ rows, departments, collaborators, cards }: Compra
         row.supplier_name,
         row.merchant_name,
         ...row.invoiceDocuments.map((document) => document.documentNumber),
-        ...row.orderCodes.map((item) => item.code),
+        ...row.orderCodes,
       ]
         .filter(Boolean)
         .join(' ')
@@ -190,17 +190,7 @@ export function ComprasTable({ rows, departments, collaborators, cards }: Compra
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
               <DetailRow
                 label="Código de Lançamento"
-                value={
-                  selected.orderCodes.length > 0
-                    ? selected.orderCodes
-                        .map((item) =>
-                          item.amountCents != null
-                            ? `${item.code} (NF: ${formatCurrencyCents(item.amountCents)})`
-                            : item.code,
-                        )
-                        .join(' / ')
-                    : '—'
-                }
+                value={selected.orderCodes.length > 0 ? selected.orderCodes.join(' / ') : '—'}
               />
               <DetailRow
                 label="Nº da NF / fatura / boleto"
