@@ -28,14 +28,9 @@ function fail(message: string): never {
   redirect(`/compras?error=${encodeURIComponent(message)}`);
 }
 
-/** Uma linha pode ter mais de um lançamento (OC + Diário de Fatura) — os campos chegam
- * como múltiplos valores com o mesmo name (FormData.getAll), aqui só filtramos os em
- * branco. */
-function parseTextList(formData: FormData, name: string): string[] {
-  return formData
-    .getAll(name)
-    .map((value) => String(value).trim())
-    .filter((value) => value.length > 0);
+interface OrderCodeRow {
+  code: string;
+  amountCents: number | null;
 }
 
 interface DocumentRow {
@@ -43,24 +38,30 @@ interface DocumentRow {
   amountCents: number | null;
 }
 
-/** Uma OC pode ter mais de uma NF anexada, cada uma com seu próprio valor (opcional) —
- * número e valor chegam em arrays paralelos (mesmo índice = mesma linha do formulário).
- * Uma linha sem número de documento é descartada — mesmo que tenha valor preenchido,
- * já que não há como salvar/exibir esse valor sem um documento pra associar. */
-function parseDocumentRows(formData: FormData): { rows: DocumentRow[]; hasOrphanAmount: boolean } {
-  const numbers = formData.getAll('invoiceDocumentNumber').map((value) => String(value).trim());
-  const amounts = formData.getAll('invoiceDocumentAmount').map((value) => String(value).trim());
+/** Uma compra pode ter mais de um lançamento (OC + Diário de Fatura) e mais de um
+ * documento (duas NFs pra mesma OC), cada um com seu próprio valor opcional — chave e
+ * valor chegam em arrays paralelos com o mesmo name (FormData.getAll), mesmo índice =
+ * mesma linha do formulário. Uma linha sem chave (código/número) é descartada — mesmo
+ * que tenha valor preenchido, já que não há como salvar/exibir esse valor sem uma chave
+ * pra associar. */
+function parseKeyedAmountRows(
+  formData: FormData,
+  keyName: string,
+  amountName: string,
+): { rows: { key: string; amountCents: number | null }[]; hasOrphanAmount: boolean } {
+  const keys = formData.getAll(keyName).map((value) => String(value).trim());
+  const amounts = formData.getAll(amountName).map((value) => String(value).trim());
 
-  const rows: DocumentRow[] = [];
+  const rows: { key: string; amountCents: number | null }[] = [];
   let hasOrphanAmount = false;
-  numbers.forEach((documentNumber, index) => {
+  keys.forEach((key, index) => {
     const amountText = amounts[index] ?? '';
     const amountCents = amountText ? parseCurrencyToCents(amountText) : 0;
-    if (!documentNumber) {
+    if (!key) {
       if (amountCents > 0) hasOrphanAmount = true;
       return;
     }
-    rows.push({ documentNumber, amountCents: amountCents > 0 ? amountCents : null });
+    rows.push({ key, amountCents: amountCents > 0 ? amountCents : null });
   });
   return { rows, hasOrphanAmount };
 }
@@ -83,11 +84,23 @@ function parsePurchaseFields(formData: FormData) {
     fail(parsed.error.issues[0]?.message ?? 'Dados inválidos.');
   }
 
-  const orderCodes = parseTextList(formData, 'purchaseOrderCode');
-  const { rows: invoiceDocuments, hasOrphanAmount } = parseDocumentRows(formData);
-  if (hasOrphanAmount) {
+  const orderCodesResult = parseKeyedAmountRows(formData, 'purchaseOrderCode', 'purchaseOrderCodeAmount');
+  if (orderCodesResult.hasOrphanAmount) {
+    fail('Informe o código do lançamento para o valor da NF preenchido (ou apague o valor).');
+  }
+  const orderCodes: OrderCodeRow[] = orderCodesResult.rows.map((row) => ({
+    code: row.key,
+    amountCents: row.amountCents,
+  }));
+
+  const documentsResult = parseKeyedAmountRows(formData, 'invoiceDocumentNumber', 'invoiceDocumentAmount');
+  if (documentsResult.hasOrphanAmount) {
     fail('Informe o número do documento para o valor preenchido (ou apague o valor).');
   }
+  const invoiceDocuments: DocumentRow[] = documentsResult.rows.map((row) => ({
+    documentNumber: row.key,
+    amountCents: row.amountCents,
+  }));
 
   // O valor da compra é a soma dos documentos anexados, quando algum deles tiver valor
   // informado (a UI já calcula isso e reflete no campo Valor, mas recalculamos aqui como
@@ -110,7 +123,7 @@ function parsePurchaseFields(formData: FormData) {
 async function replaceLineItems(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   purchaseId: string,
-  orderCodes: string[],
+  orderCodes: OrderCodeRow[],
   invoiceDocuments: DocumentRow[],
 ) {
   const { error: deleteCodesError } = await supabase.from('purchase_order_codes').delete().eq('purchase_id', purchaseId);
@@ -123,9 +136,13 @@ async function replaceLineItems(
   }
 
   if (orderCodes.length > 0) {
-    const { error } = await supabase
-      .from('purchase_order_codes')
-      .insert(orderCodes.map((code) => ({ purchase_id: purchaseId, code })));
+    const { error } = await supabase.from('purchase_order_codes').insert(
+      orderCodes.map((order) => ({
+        purchase_id: purchaseId,
+        code: order.code,
+        amount_cents: order.amountCents,
+      })),
+    );
     if (error) fail('Não foi possível salvar os lançamentos (OC/Diário de Fatura).');
   }
   if (invoiceDocuments.length > 0) {

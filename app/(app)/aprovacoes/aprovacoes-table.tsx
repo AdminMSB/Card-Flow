@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrencyCents, formatDate } from '@/lib/format';
+import type { OrderCodeItem } from '@/lib/purchase-line-items';
 import { AprovarDialog } from './aprovar-dialog';
 import { RejeitarDialog } from './rejeitar-dialog';
 
@@ -15,7 +16,7 @@ export interface ApprovalListItem {
   supplier_name: string | null;
   description: string | null;
   requisition_number: string | null;
-  orderCodes: string[];
+  orderCodes: OrderCodeItem[];
   requesterLabel: string;
   receiptUrl: string | null;
 }
@@ -88,7 +89,17 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
               <DetailRow label="Nº da requisição" value={selected.requisition_number ?? '—'} />
               <DetailRow
                 label="Código de Lançamento"
-                value={selected.orderCodes.length > 0 ? selected.orderCodes.join(' / ') : '—'}
+                value={
+                  selected.orderCodes.length > 0
+                    ? selected.orderCodes
+                        .map((item) =>
+                          item.amountCents != null
+                            ? `${item.code} (NF: ${formatCurrencyCents(item.amountCents)})`
+                            : item.code,
+                        )
+                        .join(' / ')
+                    : '—'
+                }
               />
               <DetailRow label="Valor" value={formatCurrencyCents(selected.amount_cents)} />
               {selected.description && <DetailRow label="Descrição" value={selected.description} />}
@@ -107,7 +118,7 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
             </div>
 
             <div className="mt-4 flex justify-end gap-2 border-t border-border pt-4">
-              <AprovarDialog purchaseId={selected.id} existingCodes={selected.orderCodes} />
+              <AprovarDialog purchaseId={selected.id} existingCodes={selected.orderCodes.map((item) => item.code)} />
               <RejeitarDialog purchaseId={selected.id} />
             </div>
           </>

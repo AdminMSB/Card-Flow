@@ -26,6 +26,11 @@ export interface CollaboratorOption {
   department_id: string | null;
 }
 
+export interface OrderCodeItem {
+  code: string;
+  amountCents: number | null;
+}
+
 export interface DocumentItem {
   documentNumber: string;
   amountCents: number | null;
@@ -43,7 +48,7 @@ export interface PurchaseDefaults {
   requisition_number: string | null;
   supplier_name: string | null;
   supplier_cnpj: string | null;
-  orderCodes: string[];
+  orderCodes: OrderCodeItem[];
   invoiceDocuments: DocumentItem[];
 }
 
@@ -64,71 +69,6 @@ interface CompraFormProps {
   triggerVariant?: ButtonProps['variant'];
 }
 
-/** Lista de campos de texto com "+ adicionar" / "×" remover — usada para os lançamentos
- * (OC/Diário de Fatura) e os documentos (NF/fatura/boleto) de uma compra, já que uma
- * linha pode ter mais de um de cada. FormData.getAll(name) recolhe todos os valores. */
-function RepeatableInputList({
-  name,
-  label,
-  placeholder,
-  defaultValues,
-  addLabel,
-  idPrefix,
-}: {
-  name: string;
-  label: string;
-  placeholder?: string;
-  defaultValues: string[];
-  addLabel: string;
-  idPrefix: string;
-}) {
-  const [values, setValues] = useState<string[]>(defaultValues.length > 0 ? defaultValues : ['']);
-
-  return (
-    <div>
-      <Label htmlFor={`${idPrefix}-0`}>{label}</Label>
-      <div className="flex flex-col gap-2">
-        {values.map((value, index) => (
-          <div key={index} className="flex gap-2">
-            <Input
-              id={`${idPrefix}-${index}`}
-              name={name}
-              type="text"
-              placeholder={placeholder}
-              value={value}
-              onChange={(event) => {
-                const next = [...values];
-                next[index] = event.target.value;
-                setValues(next);
-              }}
-            />
-            {values.length > 1 && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                aria-label="Remover"
-                onClick={() => setValues(values.filter((_, i) => i !== index))}
-              >
-                ×
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        className="mt-2"
-        onClick={() => setValues([...values, ''])}
-      >
-        + {addLabel}
-      </Button>
-    </div>
-  );
-}
-
 /** Formulário de compra (criação e edição) exibido dentro de um Dialog. */
 export function CompraForm({
   mode,
@@ -143,6 +83,11 @@ export function CompraForm({
   const [requesterName, setRequesterName] = useState(purchase?.requester_name ?? '');
   const [departmentId, setDepartmentId] = useState(purchase?.department_id ?? '');
   const [amountText, setAmountText] = useState(centsToAmountText(purchase?.amount_cents ?? null));
+  const [orderCodeRows, setOrderCodeRows] = useState(
+    purchase && purchase.orderCodes.length > 0
+      ? purchase.orderCodes.map((item) => ({ code: item.code, amount: centsToAmountText(item.amountCents) }))
+      : [{ code: '', amount: '' }],
+  );
   const [documentRows, setDocumentRows] = useState(
     purchase && purchase.invoiceDocuments.length > 0
       ? purchase.invoiceDocuments.map((document) => ({
@@ -320,15 +265,67 @@ export function CompraForm({
             </Select>
           </div>
 
-          <RepeatableInputList
-            key={`purchaseOrderCode-${mode}-${purchase?.id ?? 'new'}`}
-            idPrefix={`purchaseOrderCode-${mode}`}
-            name="purchaseOrderCode"
-            label="Código de Lançamento"
-            placeholder="Ex.: diário de fatura ou ordem de compra"
-            addLabel="Adicionar lançamento"
-            defaultValues={purchase?.orderCodes ?? []}
-          />
+          <div>
+            <Label htmlFor={`purchaseOrderCode-${mode}-0`}>Código de Lançamento</Label>
+            <div className="flex flex-col gap-2">
+              {orderCodeRows.map((row, index) => (
+                <div key={index} className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      id={`purchaseOrderCode-${mode}-${index}`}
+                      name="purchaseOrderCode"
+                      type="text"
+                      placeholder="Ex.: diário de fatura ou ordem de compra"
+                      value={row.code}
+                      onChange={(event) =>
+                        setOrderCodeRows(
+                          orderCodeRows.map((item, i) => (i === index ? { ...item, code: event.target.value } : item)),
+                        )
+                      }
+                    />
+                  </div>
+                  <div className="w-24 shrink-0">
+                    <Input
+                      name="purchaseOrderCodeAmount"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={row.amount}
+                      onChange={(event) =>
+                        setOrderCodeRows(
+                          orderCodeRows.map((item, i) => (i === index ? { ...item, amount: event.target.value } : item)),
+                        )
+                      }
+                    />
+                  </div>
+                  {orderCodeRows.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      aria-label="Remover"
+                      onClick={() => setOrderCodeRows(orderCodeRows.filter((_, i) => i !== index))}
+                    >
+                      ×
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Valor total da NF (com IPI) — separado do Valor da compra, que segue o que
+              aparece na fatura do cartão.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="mt-2"
+              onClick={() => setOrderCodeRows([...orderCodeRows, { code: '', amount: '' }])}
+            >
+              + Adicionar lançamento
+            </Button>
+          </div>
 
           <div>
             <Label htmlFor={`invoiceDocumentNumber-${mode}-0`}>Nº da NF / fatura / boleto</Label>

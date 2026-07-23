@@ -108,7 +108,7 @@ async function buildReportLines(
     fornecedor: row.supplier_name ?? '—',
     cnpjFornecedor: row.supplier_cnpj ?? '—',
     requisicao: row.requisition_number ?? '—',
-    ordemCompra: (orderCodesByPurchaseId.get(row.id) ?? []).join(' / ') || '—',
+    ordemCompra: (orderCodesByPurchaseId.get(row.id) ?? []).map((item) => item.code).join(' / ') || '—',
     notaFiscal: (invoiceDocumentsByPurchaseId.get(row.id) ?? []).map((item) => item.documentNumber).join(' / ') || '—',
     centroCusto: row.department_id ? costCenterNameById.get(row.department_id) ?? '—' : '—',
     valorCents: row.amount_cents,
