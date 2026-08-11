@@ -262,8 +262,11 @@ export function CompraForm({
               type="text"
               placeholder="Ex.: nome da loja/vendedor — nunca é o nome do site"
               defaultValue={purchase?.supplier_name ?? ''}
-              required
             />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Pode deixar em branco em compras online sem fornecedor definido ainda —
+              complete depois, ao receber a NF, editando a compra.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

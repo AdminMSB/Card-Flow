@@ -18,7 +18,7 @@ const purchaseSchema = z.object({
   discount: z.string(),
   surcharge: z.string(),
   merchantName: z.string(),
-  supplierName: z.string().trim().min(1, 'Informe o fornecedor.'),
+  supplierName: z.string(),
   departmentId: z.string(),
   description: z.string(),
   requisitionNumber: z.string(),
@@ -109,10 +109,25 @@ function parsePurchaseFields(formData: FormData) {
   }
 
   // Site é opcional (nem toda compra passa por uma plataforma); quando em branco, o
-  // fornecedor é o que efetivamente aparece na fatura do cartão.
-  const merchantName = parsed.data.merchantName.trim() || parsed.data.supplierName;
+  // fornecedor é o que efetivamente aparece na fatura do cartão. Fornecedor também é
+  // opcional na compra online: às vezes só se sabe o nome dele quando a NF chega — a
+  // compra fica registrada incompleta (pendente) até ser complementada na edição.
+  const supplierName = parsed.data.supplierName.trim();
+  const merchantName = parsed.data.merchantName.trim() || supplierName;
+  if (!merchantName) {
+    fail('Informe o Site ou o Fornecedor.');
+  }
 
-  return { ...parsed.data, amountCents, discountCents, surchargeCents, merchantName, orderCodes, invoiceDocuments };
+  return {
+    ...parsed.data,
+    amountCents,
+    discountCents,
+    surchargeCents,
+    merchantName,
+    supplierName,
+    orderCodes,
+    invoiceDocuments,
+  };
 }
 
 /** Substitui a lista de lançamentos/documentos de uma compra pelas listas atuais do
@@ -184,7 +199,7 @@ export async function createPurchase(formData: FormData) {
       discount_cents: fields.discountCents,
       surcharge_cents: fields.surchargeCents,
       merchant_name: fields.merchantName,
-      supplier_name: fields.supplierName,
+      supplier_name: fields.supplierName || null,
       department_id: fields.departmentId || null,
       description: fields.description || null,
       requisition_number: fields.requisitionNumber || null,
@@ -271,7 +286,7 @@ export async function updatePurchase(formData: FormData) {
       discount_cents: fields.discountCents,
       surcharge_cents: fields.surchargeCents,
       merchant_name: fields.merchantName,
-      supplier_name: fields.supplierName,
+      supplier_name: fields.supplierName || null,
       department_id: fields.departmentId || null,
       description: fields.description || null,
       requisition_number: fields.requisitionNumber || null,
