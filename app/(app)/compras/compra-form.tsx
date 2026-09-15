@@ -79,6 +79,9 @@ export function CompraForm({
   const [open, setOpen] = useState(false);
   const [requesterName, setRequesterName] = useState(purchase?.requester_name ?? '');
   const [departmentId, setDepartmentId] = useState(purchase?.department_id ?? '');
+  const [purchaseDateValue, setPurchaseDateValue] = useState(purchase?.purchase_date.slice(0, 10) ?? '');
+  const [supplierName, setSupplierName] = useState(purchase?.supplier_name ?? '');
+  const [supplierCnpj, setSupplierCnpj] = useState(purchase?.supplier_cnpj ?? '');
   const [amountText, setAmountText] = useState(centsToAmountText(purchase?.amount_cents ?? null));
   const [discountText, setDiscountText] = useState(centsToAmountText(purchase?.discount_cents || null));
   const [surchargeText, setSurchargeText] = useState(centsToAmountText(purchase?.surcharge_cents || null));
@@ -93,6 +96,8 @@ export function CompraForm({
         }))
       : [{ number: '', amount: '' }],
   );
+  const [extracting, setExtracting] = useState(false);
+  const [extractionWarning, setExtractionWarning] = useState<string | null>(null);
   const action = mode === 'edit' ? updatePurchase : createPurchase;
   const title = mode === 'edit' ? 'Editar compra' : 'Nova compra';
   const datalistId = `collaborators-${mode}-${purchase?.id ?? 'new'}`;
@@ -133,6 +138,58 @@ export function CompraForm({
   function handleSurchargeChange(value: string) {
     setSurchargeText(value);
     recomputeAmount(documentRows, discountText, value);
+  }
+
+  // Lê NF/DANFE/boleto em PDF e preenche os campos que vêm do documento (fornecedor,
+  // CNPJ, valor, número, data) — o que é do ERP (requisição, centro de custo, solicitante,
+  // código de lançamento) continua sempre manual. Imagem/foto não tem leitura automática.
+  async function handleReceiptChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    setExtractionWarning(null);
+    if (!file || file.type !== 'application/pdf') return;
+
+    setExtracting(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const response = await fetch('/api/compras/extract-document', { method: 'POST', body });
+      if (!response.ok) throw new Error('extraction failed');
+      const data: {
+        supplierName: string | null;
+        supplierCnpj: string | null;
+        amountCents: number | null;
+        documentNumber: string | null;
+        issueDate: string | null;
+        unmatchedFields: string[];
+      } = await response.json();
+
+      if (data.supplierName) setSupplierName(data.supplierName);
+      if (data.supplierCnpj) setSupplierCnpj(data.supplierCnpj);
+      if (data.issueDate) setPurchaseDateValue(data.issueDate);
+
+      if (data.documentNumber || data.amountCents != null) {
+        const emptyIndex = documentRows.findIndex((row) => !row.number && !row.amount);
+        const filledRow = {
+          number: data.documentNumber ?? '',
+          amount: data.amountCents != null ? centsToAmountText(data.amountCents) : '',
+        };
+        if (emptyIndex >= 0) {
+          updateDocumentRows(documentRows.map((row, i) => (i === emptyIndex ? filledRow : row)));
+        } else {
+          updateDocumentRows([...documentRows, filledRow]);
+        }
+      }
+
+      if (data.unmatchedFields.length > 0) {
+        setExtractionWarning(
+          `Não foi possível identificar automaticamente: ${data.unmatchedFields.join(', ')}. Confira/preencha manualmente.`,
+        );
+      }
+    } catch {
+      setExtractionWarning('Não foi possível ler o documento automaticamente. Preencha os campos manualmente.');
+    } finally {
+      setExtracting(false);
+    }
   }
 
   return (
@@ -188,7 +245,8 @@ export function CompraForm({
                 id={`purchaseDate-${mode}`}
                 name="purchaseDate"
                 type="date"
-                defaultValue={purchase?.purchase_date.slice(0, 10) ?? ''}
+                value={purchaseDateValue}
+                onChange={(event) => setPurchaseDateValue(event.target.value)}
                 required
               />
             </div>
@@ -261,7 +319,8 @@ export function CompraForm({
               name="supplierName"
               type="text"
               placeholder="Ex.: nome da loja/vendedor — nunca é o nome do site"
-              defaultValue={purchase?.supplier_name ?? ''}
+              value={supplierName}
+              onChange={(event) => setSupplierName(event.target.value)}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Pode deixar em branco em compras online sem fornecedor definido ainda —
@@ -286,7 +345,8 @@ export function CompraForm({
                 name="supplierCnpj"
                 type="text"
                 placeholder="00.000.000/0000-00"
-                defaultValue={purchase?.supplier_cnpj ?? ''}
+                value={supplierCnpj}
+                onChange={(event) => setSupplierCnpj(event.target.value)}
               />
             </div>
           </div>
@@ -412,11 +472,22 @@ export function CompraForm({
 
           <div>
             <Label htmlFor={`receipt-${mode}`}>Comprovante</Label>
-            <Input id={`receipt-${mode}`} name="receipt" type="file" accept="image/*,application/pdf" />
+            <Input
+              id={`receipt-${mode}`}
+              name="receipt"
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={handleReceiptChange}
+            />
             <p className="mt-1 text-xs text-muted-foreground">
               Imagem ou PDF, até 10MB.
               {mode === 'edit' ? ' Envie um novo arquivo para substituir o comprovante atual.' : ''}
+              {' '}
+              Em PDF de NF/DANFE/boleto, tentamos preencher fornecedor, CNPJ, valor e número
+              automaticamente.
             </p>
+            {extracting && <p className="mt-1 text-xs text-muted-foreground">Lendo documento...</p>}
+            {extractionWarning && <p className="mt-1 text-xs text-warning">{extractionWarning}</p>}
           </div>
 
           <div className="flex justify-end gap-2">
