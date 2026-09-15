@@ -298,8 +298,10 @@ export async function updatePurchase(formData: FormData) {
     .maybeSingle();
 
   // `updated` vem null tanto em erro real quanto quando a RLS silenciosamente não afeta
-  // nenhuma linha (ex.: gestor tentando editar uma compra fora do setor dele).
-  if (updateError || !updated) fail('Não foi possível atualizar a compra.');
+  // nenhuma linha (ex.: gestor tentando editar uma compra fora do setor dele). Mostra o
+  // motivo exato do Postgres (temporário, pra diagnosticar) em vez de uma mensagem genérica.
+  if (updateError) fail(`Não foi possível atualizar a compra: ${updateError.message}`);
+  if (!updated) fail('Não foi possível atualizar a compra (nenhuma linha afetada — permissão?).');
 
   await replaceLineItems(supabase, id, fields.orderCodes, fields.invoiceDocuments);
 
