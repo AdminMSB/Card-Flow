@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Dialog } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { PurchaseStatusBadge } from '@/components/status-badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { formatCurrencyCents, formatDate } from '@/lib/format';
@@ -38,16 +41,96 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 
 /** Tabela de Relatórios; clicar em uma linha abre um painel com os detalhes — e, se a
  * compra ainda estiver pendente, as ações de Liberar/Rejeitar (mesmo fluxo de Aprovações,
- * só que sem sair desta tela). */
+ * só que sem sair desta tela). Filtros iguais aos de Aprovações: requisição, solicitante,
+ * valor e NF/fatura/boleto — todos aplicados em memória sobre os dados já carregados. */
 export function RelatoriosTable({ rows }: { rows: RelatoriosRow[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [requisitionQuery, setRequisitionQuery] = useState('');
+  const [requesterLabel, setRequesterLabel] = useState('');
+  const [amountQuery, setAmountQuery] = useState('');
+  const [documentQuery, setDocumentQuery] = useState('');
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const returnTo = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
   const selected = rows.find((row) => row.id === selectedId) ?? null;
 
+  const requesterOptions = useMemo(
+    () => Array.from(new Set(rows.map((row) => row.requesterLabel))).sort((a, b) => a.localeCompare(b)),
+    [rows],
+  );
+
+  const filteredRows = useMemo(() => {
+    const requisitionFilter = requisitionQuery.trim().toLowerCase();
+    const amountFilter = amountQuery.trim().toLowerCase();
+    const documentFilter = documentQuery.trim().toLowerCase();
+
+    return rows.filter((row) => {
+      if (requesterLabel && row.requesterLabel !== requesterLabel) return false;
+      if (requisitionFilter && !(row.requisition_number ?? '').toLowerCase().includes(requisitionFilter)) {
+        return false;
+      }
+      if (amountFilter && !formatCurrencyCents(row.amount_cents).toLowerCase().includes(amountFilter)) {
+        return false;
+      }
+      if (documentFilter) {
+        const documentText = row.invoiceDocuments
+          .map((document) => document.documentNumber ?? '')
+          .join(' ')
+          .toLowerCase();
+        if (!documentText.includes(documentFilter)) return false;
+      }
+      return true;
+    });
+  }, [rows, requisitionQuery, requesterLabel, amountQuery, documentQuery]);
+
   return (
     <>
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <Label htmlFor="relatorios-filtro-requisicao">Requisição</Label>
+          <Input
+            id="relatorios-filtro-requisicao"
+            type="search"
+            value={requisitionQuery}
+            onChange={(event) => setRequisitionQuery(event.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="relatorios-filtro-solicitante">Solicitante</Label>
+          <Select
+            id="relatorios-filtro-solicitante"
+            value={requesterLabel}
+            onChange={(event) => setRequesterLabel(event.target.value)}
+          >
+            <option value="">Todos</option>
+            {requesterOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="relatorios-filtro-valor">Valor</Label>
+          <Input
+            id="relatorios-filtro-valor"
+            type="search"
+            placeholder="Ex.: 53,42"
+            value={amountQuery}
+            onChange={(event) => setAmountQuery(event.target.value)}
+          />
+        </div>
+        <div>
+          <Label htmlFor="relatorios-filtro-documento">NF/Fatura/Boleto</Label>
+          <Input
+            id="relatorios-filtro-documento"
+            type="search"
+            value={documentQuery}
+            onChange={(event) => setDocumentQuery(event.target.value)}
+          />
+        </div>
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -63,14 +146,14 @@ export function RelatoriosTable({ rows }: { rows: RelatoriosRow[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.length === 0 ? (
+          {filteredRows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={9} className="text-center text-muted-foreground">
-                Nenhum resultado para os filtros selecionados.
+                {rows.length === 0 ? 'Nenhuma compra registrada ainda.' : 'Nenhuma compra encontrada para esse filtro.'}
               </TableCell>
             </TableRow>
           ) : (
-            rows.map((row) => (
+            filteredRows.map((row) => (
               <TableRow
                 key={row.id}
                 onClick={() => setSelectedId(row.id)}

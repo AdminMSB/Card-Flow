@@ -2,17 +2,10 @@ import { requireRole } from '@/lib/auth';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { fetchPurchaseLineItems } from '@/lib/purchase-line-items';
 import { formatCurrencyCents } from '@/lib/format';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { PURCHASE_STATUS_LABELS, type PurchaseStatus } from '@/types/domain';
+import type { PurchaseStatus } from '@/types/domain';
 import { RelatoriosTable, type RelatoriosRow } from './relatorios-table';
-
-const PURCHASE_STATUSES: PurchaseStatus[] = ['pending', 'approved', 'rejected', 'reconciled'];
-const DISPLAY_LIMIT = 200;
 
 const exportLinkClassName = cn(
   'inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-muted px-4',
@@ -20,16 +13,7 @@ const exportLinkClassName = cn(
 );
 
 interface RelatoriosPageProps {
-  searchParams: { [key: string]: string | string[] | undefined };
-}
-
-function paramString(value: string | string[] | undefined): string | undefined {
-  if (typeof value === 'string' && value.length > 0) return value;
-  return undefined;
-}
-
-function isPurchaseStatus(value: string | undefined): value is PurchaseStatus {
-  return !!value && (PURCHASE_STATUSES as string[]).includes(value);
+  searchParams: { error?: string };
 }
 
 interface PurchaseRow {
@@ -53,72 +37,20 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
   await requireRole('gestor', 'financeiro', 'admin');
   const supabase = await createServerSupabaseClient();
 
-  const de = paramString(searchParams.de);
-  const ate = paramString(searchParams.ate);
-  const departmentId = paramString(searchParams.department_id);
-  const costCenterId = paramString(searchParams.cost_center_id);
-  const rawStatus = paramString(searchParams.status);
-  const status = isPurchaseStatus(rawStatus) ? rawStatus : undefined;
-
   const { data: departments } = await supabase.from('departments').select('id, name').order('name');
 
-  // Filtro por setor: uma compra pode ter o setor direto (`department_id`, usado em dados
-  // importados de um cartão compartilhado por vários setores) ou herdado do setor do
-  // cartão — casa com qualquer um dos dois.
-  let cardIdsForDepartment: string[] = [];
-  if (departmentId) {
-    const { data: cardsInDepartment } = await supabase
-      .from('cards')
-      .select('id')
-      .eq('department_id', departmentId);
-    cardIdsForDepartment = (cardsInDepartment ?? []).map((card) => card.id);
-  }
+  const { data: purchasesData } = await supabase
+    .from('purchases')
+    .select(
+      'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, department_id, requisition_number, purchase_order_code, invoice_document_number, description, receipt_path',
+    )
+    .order('purchase_date', { ascending: false });
 
-  let rows: PurchaseRow[] = [];
-  let allMatching: { amount_cents: number; status: PurchaseStatus }[] = [];
-
-  {
-    let detailQuery = supabase
-      .from('purchases')
-      .select(
-        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, department_id, requisition_number, purchase_order_code, invoice_document_number, description, receipt_path',
-      );
-    let summaryQuery = supabase.from('purchases').select('amount_cents, status');
-
-    if (de) {
-      detailQuery = detailQuery.gte('purchase_date', de);
-      summaryQuery = summaryQuery.gte('purchase_date', de);
-    }
-    if (ate) {
-      detailQuery = detailQuery.lte('purchase_date', ate);
-      summaryQuery = summaryQuery.lte('purchase_date', ate);
-    }
-    if (costCenterId) {
-      detailQuery = detailQuery.eq('department_id', costCenterId);
-      summaryQuery = summaryQuery.eq('department_id', costCenterId);
-    }
-    if (status) {
-      detailQuery = detailQuery.eq('status', status);
-      summaryQuery = summaryQuery.eq('status', status);
-    }
-    if (departmentId) {
-      const cardFilter = cardIdsForDepartment.length ? `,card_id.in.(${cardIdsForDepartment.join(',')})` : '';
-      const orFilter = `department_id.eq.${departmentId}${cardFilter}`;
-      detailQuery = detailQuery.or(orFilter);
-      summaryQuery = summaryQuery.or(orFilter);
-    }
-
-    const [{ data: detailData }, { data: summaryData }] = await Promise.all([
-      detailQuery.order('purchase_date', { ascending: false }).limit(DISPLAY_LIMIT),
-      summaryQuery,
-    ]);
-    rows = detailData ?? [];
-    allMatching = summaryData ?? [];
-  }
+  const rows: PurchaseRow[] = purchasesData ?? [];
 
   // Nome do solicitante é resolvido em lote (sem embutir joins no select do Postgrest, já
-  // que o tipo `Database` não declara `Relationships`). Centro de custo reutiliza `departments`,
-  // já que são o mesmo conceito.
+  // que o tipo `Database` não declara `Relationships`). Centro de custo reutiliza
+  // `departments`, já que são o mesmo conceito.
   const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter((id): id is string => !!id)));
 
   const { data: profilesData } = userIds.length
@@ -154,84 +86,20 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
     }),
   );
 
-  const totalItens = allMatching.length;
-  const totalCents = allMatching.reduce((total, row) => total + row.amount_cents, 0);
-  const totalReconciled = allMatching.filter((row) => row.status === 'reconciled').length;
-
-  const exportParams = new URLSearchParams();
-  if (de) exportParams.set('de', de);
-  if (ate) exportParams.set('ate', ate);
-  if (departmentId) exportParams.set('department_id', departmentId);
-  if (costCenterId) exportParams.set('cost_center_id', costCenterId);
-  if (status) exportParams.set('status', status);
-
-  const excelParams = new URLSearchParams(exportParams);
-  excelParams.set('formato', 'excel');
-  const pdfParams = new URLSearchParams(exportParams);
-  pdfParams.set('formato', 'pdf');
+  const totalItens = rows.length;
+  const totalCents = rows.reduce((total, row) => total + row.amount_cents, 0);
+  const totalReconciled = rows.filter((row) => row.status === 'reconciled').length;
 
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Relatórios</h1>
         <p className="text-sm text-muted-foreground">
-          Filtre as compras por período, setor, centro de custo e status.
+          Encontre uma compra por requisição, solicitante, valor ou NF/fatura/boleto.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form method="get" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            <div>
-              <Label htmlFor="de">De</Label>
-              <Input id="de" type="date" name="de" defaultValue={de ?? ''} />
-            </div>
-            <div>
-              <Label htmlFor="ate">Até</Label>
-              <Input id="ate" type="date" name="ate" defaultValue={ate ?? ''} />
-            </div>
-            <div>
-              <Label htmlFor="department_id">Setor</Label>
-              <Select id="department_id" name="department_id" defaultValue={departmentId ?? ''}>
-                <option value="">Todos</option>
-                {(departments ?? []).map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="cost_center_id">Centro de custo</Label>
-              <Select id="cost_center_id" name="cost_center_id" defaultValue={costCenterId ?? ''}>
-                <option value="">Todos</option>
-                {(departments ?? []).map((department) => (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="status">Status</Label>
-              <Select id="status" name="status" defaultValue={status ?? ''}>
-                <option value="">Todos</option>
-                {PURCHASE_STATUSES.map((purchaseStatus) => (
-                  <option key={purchaseStatus} value={purchaseStatus}>
-                    {PURCHASE_STATUS_LABELS[purchaseStatus]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="flex items-end lg:col-span-5">
-              <Button type="submit">Filtrar</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      {searchParams.error && <p className="text-sm text-destructive">{searchParams.error}</p>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
@@ -255,19 +123,13 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <a href={`/api/relatorios/export?${excelParams.toString()}`} className={exportLinkClassName}>
+        <a href="/api/relatorios/export?formato=excel" className={exportLinkClassName}>
           Exportar Excel
         </a>
-        <a href={`/api/relatorios/export?${pdfParams.toString()}`} className={exportLinkClassName}>
+        <a href="/api/relatorios/export?formato=pdf" className={exportLinkClassName}>
           Exportar PDF
         </a>
       </div>
-
-      {totalItens > DISPLAY_LIMIT ? (
-        <p className="text-sm text-muted-foreground">
-          Mostrando as {DISPLAY_LIMIT} mais recentes de {totalItens} — exporte para ver tudo.
-        </p>
-      ) : null}
 
       <RelatoriosTable rows={relatoriosRows} />
     </div>
