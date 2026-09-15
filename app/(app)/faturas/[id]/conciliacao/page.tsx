@@ -14,11 +14,11 @@ interface PurchaseOption {
   id: string;
   purchase_date: string;
   amount_cents: number;
-  merchant_name: string;
+  merchant_name: string | null;
 }
 
 function purchaseLabel(purchase: PurchaseOption): string {
-  return `${formatDate(purchase.purchase_date)} — ${formatCurrencyCents(purchase.amount_cents)} — ${purchase.merchant_name}`;
+  return `${formatDate(purchase.purchase_date)} — ${formatCurrencyCents(purchase.amount_cents)} — ${purchase.merchant_name ?? '—'}`;
 }
 
 export default async function ConciliacaoPage({
@@ -167,7 +167,7 @@ export default async function ConciliacaoPage({
                     <p className="text-xs font-medium text-muted-foreground">Compra sugerida</p>
                     <p className="text-sm">
                       {purchase
-                        ? `${formatDate(purchase.purchase_date)} — ${formatCurrencyCents(purchase.amount_cents)} — ${purchase.merchant_name}`
+                        ? purchaseLabel(purchase)
                         : '—'}
                     </p>
                   </div>
@@ -270,7 +270,7 @@ export default async function ConciliacaoPage({
                     <p className="text-xs font-medium text-muted-foreground">Compra conciliada</p>
                     <p className="text-sm">
                       {purchase
-                        ? `${formatDate(purchase.purchase_date)} — ${formatCurrencyCents(purchase.amount_cents)} — ${purchase.merchant_name}`
+                        ? purchaseLabel(purchase)
                         : '—'}
                     </p>
                   </div>

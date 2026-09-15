@@ -30,7 +30,10 @@ export default async function FaturaDetalhePage({ params }: { params: { id: stri
     new Set(itemList.map((item) => item.matched_purchase_id).filter((id): id is string => Boolean(id))),
   );
 
-  let purchasesById = new Map<string, { id: string; purchase_date: string; amount_cents: number; merchant_name: string }>();
+  let purchasesById = new Map<
+    string,
+    { id: string; purchase_date: string; amount_cents: number; merchant_name: string | null }
+  >();
   if (matchedPurchaseIds.length > 0) {
     const { data: purchases } = await supabase
       .from('purchases')
@@ -85,7 +88,7 @@ export default async function FaturaDetalhePage({ params }: { params: { id: stri
                     </TableCell>
                     <TableCell>
                       {purchase
-                        ? `${formatDate(purchase.purchase_date)} — ${formatCurrencyCents(purchase.amount_cents)} — ${purchase.merchant_name}`
+                        ? `${formatDate(purchase.purchase_date)} — ${formatCurrencyCents(purchase.amount_cents)} — ${purchase.merchant_name ?? '—'}`
                         : '—'}
                     </TableCell>
                   </TableRow>

@@ -101,13 +101,15 @@ function parsePurchaseFields(formData: FormData) {
     fail('Informe um valor válido maior que zero.');
   }
 
-  // Site é opcional (nem toda compra passa por uma plataforma); quando em branco, o
-  // fornecedor é o que efetivamente aparece na fatura do cartão. Fornecedor também é
-  // opcional na compra online: às vezes só se sabe o nome dele quando a NF chega — a
-  // compra fica registrada incompleta (pendente) até ser complementada na edição.
+  // Site é sempre manual — nunca herda o Fornecedor (nem toda compra passa por uma
+  // plataforma, e ficar preenchido "sozinho" com o valor do Fornecedor só confundia,
+  // reaparecendo como se tivesse sido digitado). Fornecedor também é opcional na compra
+  // online: às vezes só se sabe o nome dele quando a NF chega — a compra fica registrada
+  // incompleta (pendente) até ser complementada na edição. Só exigimos que pelo menos um
+  // dos dois esteja preenchido.
   const supplierName = parsed.data.supplierName.trim();
-  const merchantName = parsed.data.merchantName.trim() || supplierName;
-  if (!merchantName) {
+  const merchantName = parsed.data.merchantName.trim();
+  if (!merchantName && !supplierName) {
     fail('Informe o Site ou o Fornecedor.');
   }
 
@@ -116,7 +118,7 @@ function parsePurchaseFields(formData: FormData) {
     amountCents,
     discountCents,
     surchargeCents,
-    merchantName,
+    merchantName: merchantName || null,
     supplierName,
     orderCodes,
     invoiceDocuments,

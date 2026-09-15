@@ -11,7 +11,7 @@ export interface ApprovalListItem {
   id: string;
   purchase_date: string;
   amount_cents: number;
-  merchant_name: string;
+  merchant_name: string | null;
   supplier_name: string | null;
   description: string | null;
   requisition_number: string | null;
@@ -60,7 +60,7 @@ export function AprovacoesTable({ rows }: { rows: ApprovalListItem[] }) {
             >
               <TableCell>{row.requesterLabel}</TableCell>
               <TableCell>{formatDate(row.purchase_date)}</TableCell>
-              <TableCell>{row.supplier_name ?? row.merchant_name}</TableCell>
+              <TableCell>{row.supplier_name ?? row.merchant_name ?? '—'}</TableCell>
               <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
             </TableRow>
           ))}

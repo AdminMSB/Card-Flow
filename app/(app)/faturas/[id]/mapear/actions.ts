@@ -125,7 +125,7 @@ export async function confirmMapping(formData: FormData): Promise<void> {
   // entram como candidatas (uma compra 'reconciled' já foi usada em outra fatura).
   const { data: candidatePurchases } = await supabase
     .from('purchases')
-    .select('id, card_id, purchase_date, amount_cents, merchant_name')
+    .select('id, card_id, purchase_date, amount_cents, merchant_name, supplier_name')
     .eq('card_id', invoice.card_id)
     .eq('status', 'approved');
 
@@ -141,7 +141,9 @@ export async function confirmMapping(formData: FormData): Promise<void> {
     cardId: purchase.card_id,
     purchaseDate: purchase.purchase_date,
     amountCents: purchase.amount_cents,
-    merchantName: purchase.merchant_name,
+    // Site é o que normalmente aparece na fatura; sem site (compra direta, sem
+    // plataforma), o nome que aparece lá costuma ser o do próprio fornecedor.
+    merchantName: purchase.merchant_name ?? purchase.supplier_name ?? '',
   }));
 
   const suggestions = suggestMatches(matchableItems, matchableCandidates);

@@ -17,7 +17,7 @@ interface PurchaseRow {
   id: string;
   purchase_date: string;
   amount_cents: number;
-  merchant_name: string;
+  merchant_name: string | null;
   status: PurchaseStatus;
   user_id: string | null;
   requester_name: string | null;

@@ -38,7 +38,7 @@ export interface PurchaseDefaults {
   amount_cents: number;
   discount_cents: number;
   surcharge_cents: number;
-  merchant_name: string;
+  merchant_name: string | null;
   department_id: string | null;
   requester_name: string | null;
   description: string | null;

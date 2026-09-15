@@ -104,7 +104,7 @@ export interface Database {
           amount_cents: number;
           discount_cents: number;
           surcharge_cents: number;
-          merchant_name: string;
+          merchant_name: string | null;
           category_id: string | null;
           cost_center_id: string | null;
           description: string | null;
@@ -131,7 +131,7 @@ export interface Database {
           amount_cents: number;
           discount_cents?: number;
           surcharge_cents?: number;
-          merchant_name: string;
+          merchant_name?: string | null;
           category_id?: string | null;
           cost_center_id?: string | null;
           description?: string | null;
