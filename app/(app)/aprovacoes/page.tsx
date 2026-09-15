@@ -31,7 +31,10 @@ export default async function AprovacoesPage({
 
   const requesterMap = new Map(requesters.map((requester) => [requester.id, requester.full_name]));
 
-  const { orderCodesByPurchaseId } = await fetchPurchaseLineItems(supabase, purchases ?? []);
+  const { orderCodesByPurchaseId, invoiceDocumentsByPurchaseId } = await fetchPurchaseLineItems(
+    supabase,
+    purchases ?? [],
+  );
 
   const rows: ApprovalListItem[] = await Promise.all(
     (purchases ?? []).map(async (purchase) => {
@@ -49,6 +52,7 @@ export default async function AprovacoesPage({
         description: purchase.description,
         requisition_number: purchase.requisition_number,
         orderCodes: orderCodesByPurchaseId.get(purchase.id) ?? [],
+        invoiceDocuments: invoiceDocumentsByPurchaseId.get(purchase.id) ?? [],
         requesterLabel:
           purchase.requester_name ?? (purchase.user_id ? requesterMap.get(purchase.user_id) : null) ?? '—',
         receiptUrl,
