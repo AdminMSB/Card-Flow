@@ -98,6 +98,7 @@ export function CompraForm({
   );
   const [extracting, setExtracting] = useState(false);
   const [extractionWarning, setExtractionWarning] = useState<string | null>(null);
+  const [cnpjLookupStatus, setCnpjLookupStatus] = useState<'idle' | 'loading' | 'not-found'>('idle');
   const action = mode === 'edit' ? updatePurchase : createPurchase;
   const title = mode === 'edit' ? 'Editar compra' : 'Nova compra';
   const datalistId = `collaborators-${mode}-${purchase?.id ?? 'new'}`;
@@ -189,6 +190,28 @@ export function CompraForm({
       setExtractionWarning('Não foi possível ler o documento automaticamente. Preencha os campos manualmente.');
     } finally {
       setExtracting(false);
+    }
+  }
+
+  // Ao sair do campo CNPJ com um valor completo (14 dígitos), busca a razão social no
+  // cadastro nacional (Receita Federal, via BrasilAPI) e preenche o Fornecedor com o
+  // resultado oficial — mais confiável que tentar adivinhar o nome no texto do PDF.
+  async function handleSupplierCnpjBlur() {
+    const digits = supplierCnpj.replace(/\D/g, '');
+    if (digits.length !== 14) return;
+
+    setCnpjLookupStatus('loading');
+    try {
+      const response = await fetch(`/api/compras/lookup-cnpj?cnpj=${digits}`);
+      const data: { companyName?: string; error?: string } = await response.json();
+      if (!response.ok || !data.companyName) {
+        setCnpjLookupStatus('not-found');
+        return;
+      }
+      setSupplierName(data.companyName);
+      setCnpjLookupStatus('idle');
+    } catch {
+      setCnpjLookupStatus('not-found');
     }
   }
 
@@ -346,8 +369,20 @@ export function CompraForm({
                 type="text"
                 placeholder="00.000.000/0000-00"
                 value={supplierCnpj}
-                onChange={(event) => setSupplierCnpj(event.target.value)}
+                onChange={(event) => {
+                  setSupplierCnpj(event.target.value);
+                  setCnpjLookupStatus('idle');
+                }}
+                onBlur={handleSupplierCnpjBlur}
               />
+              {cnpjLookupStatus === 'loading' && (
+                <p className="mt-1 text-xs text-muted-foreground">Buscando fornecedor pelo CNPJ...</p>
+              )}
+              {cnpjLookupStatus === 'not-found' && (
+                <p className="mt-1 text-xs text-warning">
+                  CNPJ não encontrado no cadastro nacional — preencha o Fornecedor manualmente.
+                </p>
+              )}
             </div>
           </div>
 

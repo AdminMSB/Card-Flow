@@ -80,6 +80,39 @@ describe('extractDocumentFields', () => {
     expect(result.unmatchedFields).not.toContain('Nº da NF/fatura/boleto');
   });
 
+  it('não confunde a data de emissão com o número do documento quando ela vem logo após o rótulo', () => {
+    const lines = [
+      'GRAFICA TESTE SERVICOS LTDA',
+      'CNPJ: 22.333.444/0001-55',
+      'Número da Nota',
+      'Data e Hora de Emissão 01/09/2026',
+      '987654',
+      'Valor Total do Serviço',
+      '65,00',
+    ];
+
+    const result = extractDocumentFields(lines);
+
+    // Encontra o número real (987654), duas linhas depois do rótulo, pulando a data no meio.
+    expect(result.documentNumber).toBe('987654');
+  });
+
+  it('deixa o número do documento em branco (em vez de usar a data) quando não há um número reconhecível por perto', () => {
+    const lines = [
+      'GRAFICA TESTE SERVICOS LTDA',
+      'CNPJ: 22.333.444/0001-55',
+      'Número da Nota',
+      'Data e Hora de Emissão 01/09/2026',
+      'Valor Total do Serviço',
+      '65,00',
+    ];
+
+    const result = extractDocumentFields(lines);
+
+    expect(result.documentNumber).toBeNull();
+    expect(result.unmatchedFields).toContain('Nº da NF/fatura/boleto');
+  });
+
   it('não confunde um rótulo de cabeçalho (ex.: "ENDEREÇO") com o nome do fornecedor', () => {
     const lines = ['ENDEREÇO: AV. TESTE, 456', 'RAZÃO SOCIAL EXEMPLO LTDA', 'CNPJ: 11.222.333/0001-44'];
 

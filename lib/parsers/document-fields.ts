@@ -61,6 +61,13 @@ function findNear(lines: string[], keywordPatterns: RegExp[], valuePattern: RegE
   return null;
 }
 
+/** Remove datas (dd/mm/aaaa) de uma linha antes de procurar o número do documento — sem
+ * isso, uma data de emissão perto do rótulo "Número da Nota" podia ser lida como se fosse
+ * o próprio número (ex.: "01/09/2026" virando "01092026"). */
+function stripDates(line: string): string {
+  return line.replace(new RegExp(DATE_PATTERN, 'g'), ' ');
+}
+
 /** Extrai fornecedor/CNPJ/valor/número/data de uma NF, DANFE ou boleto a partir das linhas
  * de texto do PDF — "melhor esforço": layouts variam entre emissores, então cada campo não
  * identificado com confiança fica null e entra em `unmatchedFields`, pra UI avisar o usuário
@@ -90,7 +97,7 @@ export function extractDocumentFields(lines: string[]): ExtractedDocumentFields 
   const amountRaw = findNear(lines, AMOUNT_KEYWORDS, MONEY_PATTERN, 1);
   const amountCents = amountRaw ? parseMoneyToCents(amountRaw) : null;
 
-  const documentNumberRaw = findNear(lines, DOCUMENT_NUMBER_KEYWORDS, /\d[\d.\-/]{2,}/, 1);
+  const documentNumberRaw = findNear(lines.map(stripDates), DOCUMENT_NUMBER_KEYWORDS, /\d[\d.\-/]{2,}/, 2);
   const documentNumber = documentNumberRaw ? documentNumberRaw.replace(/\D/g, '').slice(0, 12) || null : null;
 
   const dateRaw = findNear(lines, DATE_KEYWORDS, DATE_PATTERN, 1);
