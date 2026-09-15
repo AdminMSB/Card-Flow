@@ -8,8 +8,17 @@ import { Label } from '@/components/ui/label';
 import { approvePurchase } from './actions';
 
 /** Botão + Dialog que pede o código da OC/Diário de Fatura antes de liberar a compra —
- * só obrigatório se a compra ainda não tiver nenhum lançamento registrado. */
-export function AprovarDialog({ purchaseId, existingCodes }: { purchaseId: string; existingCodes: string[] }) {
+ * só obrigatório se a compra ainda não tiver nenhum lançamento registrado. `returnTo` é a
+ * tela de onde a ação foi disparada (Aprovações ou Relatórios), pra voltar pra lá depois. */
+export function AprovarDialog({
+  purchaseId,
+  existingCodes,
+  returnTo = '/aprovacoes',
+}: {
+  purchaseId: string;
+  existingCodes: string[];
+  returnTo?: string;
+}) {
   const [open, setOpen] = useState(false);
   const hasCodes = existingCodes.length > 0;
 
@@ -22,6 +31,7 @@ export function AprovarDialog({ purchaseId, existingCodes }: { purchaseId: strin
       <Dialog open={open} onClose={() => setOpen(false)} title="Liberar compra">
         <form action={approvePurchase} onSubmit={() => setOpen(false)} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={purchaseId} />
+          <input type="hidden" name="returnTo" value={returnTo} />
           {hasCodes && (
             <p className="text-sm text-muted-foreground">
               Lançamento já registrado: {existingCodes.join(' / ')}

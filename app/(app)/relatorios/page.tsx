@@ -1,16 +1,15 @@
 import { requireRole } from '@/lib/auth';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { fetchPurchaseLineItems } from '@/lib/purchase-line-items';
-import { formatCurrencyCents, formatDate } from '@/lib/format';
-import { PurchaseStatusBadge } from '@/components/status-badge';
+import { formatCurrencyCents } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { PURCHASE_STATUS_LABELS, type PurchaseStatus } from '@/types/domain';
+import { RelatoriosTable, type RelatoriosRow } from './relatorios-table';
 
 const PURCHASE_STATUSES: PurchaseStatus[] = ['pending', 'approved', 'rejected', 'reconciled'];
 const DISPLAY_LIMIT = 200;
@@ -46,6 +45,8 @@ interface PurchaseRow {
   requisition_number: string | null;
   purchase_order_code: string | null;
   invoice_document_number: string | null;
+  description: string | null;
+  receipt_path: string | null;
 }
 
 export default async function RelatoriosPage({ searchParams }: RelatoriosPageProps) {
@@ -80,7 +81,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
     let detailQuery = supabase
       .from('purchases')
       .select(
-        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, department_id, requisition_number, purchase_order_code, invoice_document_number',
+        'id, purchase_date, amount_cents, merchant_name, status, user_id, requester_name, supplier_name, department_id, requisition_number, purchase_order_code, invoice_document_number, description, receipt_path',
       );
     let summaryQuery = supabase.from('purchases').select('amount_cents, status');
 
@@ -126,7 +127,32 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
 
   const costCenterNameById = new Map((departments ?? []).map((department) => [department.id, department.name]));
   const fullNameById = new Map((profilesData ?? []).map((profile) => [profile.id, profile.full_name]));
-  const { orderCodesByPurchaseId } = await fetchPurchaseLineItems(supabase, rows);
+  const { orderCodesByPurchaseId, invoiceDocumentsByPurchaseId } = await fetchPurchaseLineItems(supabase, rows);
+
+  const relatoriosRows: RelatoriosRow[] = await Promise.all(
+    rows.map(async (row) => {
+      let receiptUrl: string | null = null;
+      if (row.receipt_path) {
+        const { data } = await supabase.storage.from('receipts').createSignedUrl(row.receipt_path, 60);
+        receiptUrl = data?.signedUrl ?? null;
+      }
+      return {
+        id: row.id,
+        purchase_date: row.purchase_date,
+        amount_cents: row.amount_cents,
+        merchant_name: row.merchant_name,
+        supplier_name: row.supplier_name,
+        description: row.description,
+        requisition_number: row.requisition_number,
+        status: row.status,
+        requesterLabel: row.requester_name ?? (row.user_id ? fullNameById.get(row.user_id) : null) ?? '—',
+        costCenterName: row.department_id ? costCenterNameById.get(row.department_id) ?? null : null,
+        orderCodes: orderCodesByPurchaseId.get(row.id) ?? [],
+        invoiceDocuments: invoiceDocumentsByPurchaseId.get(row.id) ?? [],
+        receiptUrl,
+      };
+    }),
+  );
 
   const totalItens = allMatching.length;
   const totalCents = allMatching.reduce((total, row) => total + row.amount_cents, 0);
@@ -243,52 +269,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
         </p>
       ) : null}
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Solicitante</TableHead>
-            <TableHead>Site</TableHead>
-            <TableHead>Fornecedor</TableHead>
-            <TableHead>Requisição</TableHead>
-            <TableHead>Código de Lançamento</TableHead>
-            <TableHead>Centro de custo</TableHead>
-            <TableHead>Valor</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={9} className="text-center text-muted-foreground">
-                Nenhum resultado para os filtros selecionados.
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{formatDate(row.purchase_date)}</TableCell>
-                <TableCell>
-                  {row.requester_name ?? (row.user_id ? fullNameById.get(row.user_id) : null) ?? '—'}
-                </TableCell>
-                <TableCell>{row.merchant_name && row.merchant_name !== row.supplier_name ? row.merchant_name : '—'}</TableCell>
-                <TableCell>{row.supplier_name ?? '—'}</TableCell>
-                <TableCell>{row.requisition_number ?? '—'}</TableCell>
-                <TableCell>
-                  {(orderCodesByPurchaseId.get(row.id) ?? []).join(' / ') || '—'}
-                </TableCell>
-                <TableCell>
-                  {row.department_id ? costCenterNameById.get(row.department_id) ?? '—' : '—'}
-                </TableCell>
-                <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
-                <TableCell>
-                  <PurchaseStatusBadge status={row.status} />
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
+      <RelatoriosTable rows={relatoriosRows} />
     </div>
   );
 }

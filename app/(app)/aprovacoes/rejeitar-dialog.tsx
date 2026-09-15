@@ -7,8 +7,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { rejectPurchase } from './actions';
 
-/** Botão + Dialog que exige uma observação antes de confirmar a rejeição de uma compra. */
-export function RejeitarDialog({ purchaseId }: { purchaseId: string }) {
+/** Botão + Dialog que exige uma observação antes de confirmar a rejeição de uma compra.
+ * `returnTo` é a tela de onde a ação foi disparada (Aprovações ou Relatórios), pra voltar
+ * pra lá depois. */
+export function RejeitarDialog({ purchaseId, returnTo = '/aprovacoes' }: { purchaseId: string; returnTo?: string }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -20,6 +22,7 @@ export function RejeitarDialog({ purchaseId }: { purchaseId: string }) {
       <Dialog open={open} onClose={() => setOpen(false)} title="Rejeitar compra">
         <form action={rejectPurchase} onSubmit={() => setOpen(false)} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={purchaseId} />
+          <input type="hidden" name="returnTo" value={returnTo} />
           <div>
             <Label htmlFor={`notes-${purchaseId}`}>Motivo da rejeição</Label>
             <Textarea
