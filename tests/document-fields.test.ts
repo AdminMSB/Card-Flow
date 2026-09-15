@@ -62,6 +62,24 @@ describe('extractDocumentFields', () => {
     });
   });
 
+  it('extrai o número de uma NFS-e (nota de serviço, layout municipal — rótulos diferentes da NF-e)', () => {
+    const lines = [
+      'PREFEITURA MUNICIPAL - NOTA FISCAL DE SERVIÇOS ELETRÔNICA - NFS-e',
+      'PRESTADOR DE SERVIÇOS',
+      'GRAFICA TESTE SERVICOS LTDA',
+      'CNPJ: 22.333.444/0001-55',
+      'Número da Nota 987654',
+      'Data e Hora de Emissão 01/09/2026',
+      'Valor Total do Serviço',
+      '65,00',
+    ];
+
+    const result = extractDocumentFields(lines);
+
+    expect(result.documentNumber).toBe('987654');
+    expect(result.unmatchedFields).not.toContain('Nº da NF/fatura/boleto');
+  });
+
   it('não confunde um rótulo de cabeçalho (ex.: "ENDEREÇO") com o nome do fornecedor', () => {
     const lines = ['ENDEREÇO: AV. TESTE, 456', 'RAZÃO SOCIAL EXEMPLO LTDA', 'CNPJ: 11.222.333/0001-44'];
 

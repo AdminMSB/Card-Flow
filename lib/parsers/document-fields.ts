@@ -25,10 +25,16 @@ const AMOUNT_KEYWORDS = [
 ];
 
 const DOCUMENT_NUMBER_KEYWORDS = [
+  // NF-e (produto)
   /N[ºO°]\.?\s*DA\s+NF-?E/i,
   /NOTA\s+FISCAL\s+N[ºO°]/i,
   /N[ºO°]\s*\/?\s*S[ÉE]RIE/i,
   /N[ºO°]\.?\s*DOCUMENTO/i,
+  // NFS-e (serviço — layout municipal, rótulos diferentes da NF-e)
+  /N[ÚU]MERO\s+DA\s+NOTA/i,
+  /N[ÚU]MERO\s+DA\s+NFS-?E/i,
+  /N[ºO°]\.?\s*DA\s+NFS-?E/i,
+  /RPS\s+N[ºO°]/i,
 ];
 
 const DATE_KEYWORDS = [/DATA\s+DA?\s+EMISS[ÃA]O/i, /DATA\s+DE\s+EMISS[ÃA]O/i, /EMISS[ÃA]O/i, /VENCIMENTO/i];
