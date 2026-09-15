@@ -1,5 +1,4 @@
 export interface ExtractedDocumentFields {
-  supplierName: string | null;
   supplierCnpj: string | null;
   amountCents: number | null;
   documentNumber: string | null;
@@ -39,10 +38,6 @@ const DOCUMENT_NUMBER_KEYWORDS = [
 
 const DATE_KEYWORDS = [/DATA\s+DA?\s+EMISS[ÃA]O/i, /DATA\s+DE\s+EMISS[ÃA]O/i, /EMISS[ÃA]O/i, /VENCIMENTO/i];
 
-// Rótulos de cabeçalho que não são o nome do fornecedor, mesmo aparecendo perto do CNPJ.
-const SUPPLIER_NAME_EXCLUDE =
-  /^(CNPJ|IE|INSCRI[ÇC][ÃA]O|ENDERE[ÇC]O|MUNIC[ÍI]PIO|UF|CEP|FONE|TELEFONE|DANFE|NOTA FISCAL|DOCUMENTO AUXILIAR|EMITENTE|DESTINAT[ÁA]RIO)/i;
-
 function parseMoneyToCents(raw: string): number {
   const normalized = raw.replace(/\./g, '').replace(',', '.');
   return Math.round(Number.parseFloat(normalized) * 100);
@@ -68,31 +63,17 @@ function stripDates(line: string): string {
   return line.replace(new RegExp(DATE_PATTERN, 'g'), ' ');
 }
 
-/** Extrai fornecedor/CNPJ/valor/número/data de uma NF, DANFE ou boleto a partir das linhas
- * de texto do PDF — "melhor esforço": layouts variam entre emissores, então cada campo não
- * identificado com confiança fica null e entra em `unmatchedFields`, pra UI avisar o usuário
- * a conferir/preencher manualmente em vez de arriscar um valor errado. */
+/** Extrai CNPJ/valor/número/data de uma NF, DANFE ou boleto a partir das linhas de texto do
+ * PDF — "melhor esforço": layouts variam entre emissores, então cada campo não identificado
+ * com confiança fica null e entra em `unmatchedFields`, pra UI avisar o usuário a
+ * conferir/preencher manualmente em vez de arriscar um valor errado. O nome do fornecedor
+ * não é tentado aqui — vem só da consulta por CNPJ ou de digitação manual, já que o texto
+ * do documento é pouco confiável pra isso (varia demais entre emissores). */
 export function extractDocumentFields(lines: string[]): ExtractedDocumentFields {
   const fullText = lines.join('\n');
 
   const cnpjMatch = fullText.match(CNPJ_PATTERN);
   const supplierCnpj = cnpjMatch ? cnpjMatch[0] : null;
-
-  // O nome do fornecedor costuma aparecer logo acima do próprio CNPJ, no bloco de
-  // cabeçalho do emitente — procura pra trás a partir da linha do CNPJ.
-  let supplierName: string | null = null;
-  if (cnpjMatch) {
-    const cnpjLineIndex = lines.findIndex((line) => line.includes(cnpjMatch[0]));
-    if (cnpjLineIndex >= 0) {
-      for (let i = cnpjLineIndex; i >= Math.max(0, cnpjLineIndex - 3); i--) {
-        const candidate = lines[i]!.replace(CNPJ_PATTERN, '').trim();
-        if (candidate.length >= 5 && /[A-Za-zÀ-ÿ]/.test(candidate) && !SUPPLIER_NAME_EXCLUDE.test(candidate)) {
-          supplierName = candidate;
-          break;
-        }
-      }
-    }
-  }
 
   const amountRaw = findNear(lines, AMOUNT_KEYWORDS, MONEY_PATTERN, 1);
   const amountCents = amountRaw ? parseMoneyToCents(amountRaw) : null;
@@ -111,11 +92,10 @@ export function extractDocumentFields(lines: string[]): ExtractedDocumentFields 
   }
 
   const unmatchedFields: string[] = [];
-  if (!supplierName) unmatchedFields.push('Fornecedor');
   if (!supplierCnpj) unmatchedFields.push('CNPJ do fornecedor');
   if (amountCents == null) unmatchedFields.push('Valor');
   if (!documentNumber) unmatchedFields.push('Nº da NF/fatura/boleto');
   if (!issueDate) unmatchedFields.push('Data de emissão');
 
-  return { supplierName, supplierCnpj, amountCents, documentNumber, issueDate, unmatchedFields };
+  return { supplierCnpj, amountCents, documentNumber, issueDate, unmatchedFields };
 }

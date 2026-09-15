@@ -142,9 +142,11 @@ export function CompraForm({
     recomputeAmount(documentRows, discountText, value);
   }
 
-  // Lê NF/DANFE/boleto em PDF e preenche os campos que vêm do documento (fornecedor,
-  // CNPJ, valor, número, data) — o que é do ERP (requisição, centro de custo, solicitante,
-  // código de lançamento) continua sempre manual. Imagem/foto não tem leitura automática.
+  // Lê NF/DANFE/boleto em PDF e preenche os campos que vêm do documento (CNPJ, valor,
+  // número, data) — o que é do ERP (requisição, centro de custo, solicitante, código de
+  // lançamento) continua sempre manual. Imagem/foto não tem leitura automática. O
+  // Fornecedor nunca vem daqui — só da consulta por CNPJ (abaixo) ou digitação manual, já
+  // que o nome no texto do documento não é confiável (varia demais entre emissores).
   async function handleReceiptChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     setExtractionWarning(null);
@@ -157,7 +159,6 @@ export function CompraForm({
       const response = await fetch('/api/compras/extract-document', { method: 'POST', body });
       if (!response.ok) throw new Error('extraction failed');
       const data: {
-        supplierName: string | null;
         supplierCnpj: string | null;
         amountCents: number | null;
         documentNumber: string | null;
@@ -165,7 +166,6 @@ export function CompraForm({
         unmatchedFields: string[];
       } = await response.json();
 
-      if (data.supplierName) setSupplierName(data.supplierName);
       if (data.supplierCnpj) setSupplierCnpj(data.supplierCnpj);
       if (data.issueDate) setPurchaseDateValue(data.issueDate);
 
@@ -515,8 +515,8 @@ export function CompraForm({
               Imagem ou PDF, até 10MB.
               {mode === 'edit' ? ' Envie um novo arquivo para substituir o comprovante atual.' : ''}
               {' '}
-              Em PDF de NF/DANFE/boleto, tentamos preencher fornecedor, CNPJ, valor e número
-              automaticamente.
+              Em PDF de NF/DANFE/boleto, tentamos preencher CNPJ, valor, número e data
+              automaticamente (o Fornecedor vem da busca pelo CNPJ, não do documento).
             </p>
             {extracting && <p className="mt-1 text-xs text-muted-foreground">Lendo documento...</p>}
             {extractionWarning && <p className="mt-1 text-xs text-warning">{extractionWarning}</p>}

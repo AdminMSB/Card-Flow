@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { extractDocumentFields } from '@/lib/parsers/document-fields';
 
 describe('extractDocumentFields', () => {
-  it('extrai fornecedor, CNPJ, valor, número e data de um DANFE fictício', () => {
+  it('extrai CNPJ, valor, número e data de um DANFE fictício', () => {
     const lines = [
       'DANFE - Documento Auxiliar da Nota Fiscal Eletrônica',
       'EMITENTE',
@@ -19,7 +19,6 @@ describe('extractDocumentFields', () => {
     const result = extractDocumentFields(lines);
 
     expect(result).toEqual({
-      supplierName: 'FICTICIA COMERCIO DE MATERIAIS LTDA',
       supplierCnpj: '12.345.678/0001-90',
       amountCents: 123456,
       documentNumber: '001234',
@@ -41,7 +40,6 @@ describe('extractDocumentFields', () => {
 
     const result = extractDocumentFields(lines);
 
-    expect(result.supplierName).toBe('EMPRESA TESTE SERVIÇOS EIRELI');
     expect(result.supplierCnpj).toBe('98.765.432/0001-11');
     expect(result.amountCents).toBe(6500);
     expect(result.issueDate).toBe('2026-09-20');
@@ -53,12 +51,11 @@ describe('extractDocumentFields', () => {
     const result = extractDocumentFields(lines);
 
     expect(result).toEqual({
-      supplierName: null,
       supplierCnpj: null,
       amountCents: null,
       documentNumber: null,
       issueDate: null,
-      unmatchedFields: ['Fornecedor', 'CNPJ do fornecedor', 'Valor', 'Nº da NF/fatura/boleto', 'Data de emissão'],
+      unmatchedFields: ['CNPJ do fornecedor', 'Valor', 'Nº da NF/fatura/boleto', 'Data de emissão'],
     });
   });
 
@@ -111,13 +108,5 @@ describe('extractDocumentFields', () => {
 
     expect(result.documentNumber).toBeNull();
     expect(result.unmatchedFields).toContain('Nº da NF/fatura/boleto');
-  });
-
-  it('não confunde um rótulo de cabeçalho (ex.: "ENDEREÇO") com o nome do fornecedor', () => {
-    const lines = ['ENDEREÇO: AV. TESTE, 456', 'RAZÃO SOCIAL EXEMPLO LTDA', 'CNPJ: 11.222.333/0001-44'];
-
-    const result = extractDocumentFields(lines);
-
-    expect(result.supplierName).toBe('RAZÃO SOCIAL EXEMPLO LTDA');
   });
 });
