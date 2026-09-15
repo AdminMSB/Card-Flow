@@ -31,7 +31,7 @@ function fail(message: string): never {
 }
 
 interface DocumentRow {
-  documentNumber: string;
+  documentNumber: string | null;
   amountCents: number | null;
 }
 
@@ -47,24 +47,21 @@ function parseTextList(formData: FormData, name: string): string[] {
 
 /** Uma OC pode ter mais de uma NF anexada, cada uma com seu próprio valor (opcional) —
  * número e valor chegam em arrays paralelos (mesmo índice = mesma linha do formulário).
- * Uma linha sem número de documento é descartada — mesmo que tenha valor preenchido, já
- * que não há como salvar/exibir esse valor sem um documento pra associar. */
-function parseDocumentRows(formData: FormData): { rows: DocumentRow[]; hasOrphanAmount: boolean } {
+ * Uma linha totalmente em branco (nem número nem valor) é descartada; uma linha com só o
+ * valor (ex.: número da NF ilegível/não identificado) fica registrada mesmo assim — o
+ * número pode ser completado depois. */
+function parseDocumentRows(formData: FormData): DocumentRow[] {
   const numbers = formData.getAll('invoiceDocumentNumber').map((value) => String(value).trim());
   const amounts = formData.getAll('invoiceDocumentAmount').map((value) => String(value).trim());
 
   const rows: DocumentRow[] = [];
-  let hasOrphanAmount = false;
   numbers.forEach((documentNumber, index) => {
     const amountText = amounts[index] ?? '';
     const amountCents = amountText ? parseCurrencyToCents(amountText) : 0;
-    if (!documentNumber) {
-      if (amountCents > 0) hasOrphanAmount = true;
-      return;
-    }
-    rows.push({ documentNumber, amountCents: amountCents > 0 ? amountCents : null });
+    if (!documentNumber && amountCents <= 0) return;
+    rows.push({ documentNumber: documentNumber || null, amountCents: amountCents > 0 ? amountCents : null });
   });
-  return { rows, hasOrphanAmount };
+  return rows;
 }
 
 function parsePurchaseFields(formData: FormData) {
@@ -88,11 +85,7 @@ function parsePurchaseFields(formData: FormData) {
   }
 
   const orderCodes = parseTextList(formData, 'purchaseOrderCode');
-
-  const { rows: invoiceDocuments, hasOrphanAmount } = parseDocumentRows(formData);
-  if (hasOrphanAmount) {
-    fail('Informe o número do documento para o valor preenchido (ou apague o valor).');
-  }
+  const invoiceDocuments = parseDocumentRows(formData);
 
   // O valor da compra é a soma dos documentos anexados, quando algum deles tiver valor
   // informado (a UI já calcula isso e reflete no campo Valor, mas recalculamos aqui como

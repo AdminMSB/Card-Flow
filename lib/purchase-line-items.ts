@@ -12,7 +12,7 @@ function splitLegacyValue(value: string | null): string[] {
 }
 
 export interface InvoiceDocumentItem {
-  documentNumber: string;
+  documentNumber: string | null;
   amountCents: number | null;
 }
 
@@ -42,7 +42,7 @@ export async function fetchPurchaseLineItems(
       ])
     : [
         { data: [] as { purchase_id: string; code: string }[] },
-        { data: [] as { purchase_id: string; document_number: string; amount_cents: number | null }[] },
+        { data: [] as { purchase_id: string; document_number: string | null; amount_cents: number | null }[] },
       ];
 
   const orderCodesByPurchaseId = new Map<string, string[]>();

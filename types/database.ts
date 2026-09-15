@@ -189,14 +189,14 @@ export interface Database {
         Row: {
           id: string;
           purchase_id: string;
-          document_number: string;
+          document_number: string | null;
           amount_cents: number | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           purchase_id: string;
-          document_number: string;
+          document_number?: string | null;
           amount_cents?: number | null;
           created_at?: string;
         };

@@ -27,7 +27,7 @@ export interface CollaboratorOption {
 }
 
 export interface DocumentItem {
-  documentNumber: string;
+  documentNumber: string | null;
   amountCents: number | null;
 }
 
@@ -91,7 +91,7 @@ export function CompraForm({
   const [documentRows, setDocumentRows] = useState(
     purchase && purchase.invoiceDocuments.length > 0
       ? purchase.invoiceDocuments.map((document) => ({
-          number: document.documentNumber,
+          number: document.documentNumber ?? '',
           amount: centsToAmountText(document.amountCents),
         }))
       : [{ number: '', amount: '' }],

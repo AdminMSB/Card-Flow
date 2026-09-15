@@ -159,7 +159,7 @@ export function ComprasTable({ rows, departments, collaborators, cards }: Compra
               <TableCell>{row.supplier_name ?? '—'}</TableCell>
               <TableCell>
                 {row.invoiceDocuments.length > 0
-                  ? row.invoiceDocuments.map((document) => document.documentNumber).join(' / ')
+                  ? row.invoiceDocuments.map((document) => document.documentNumber ?? '(sem nº)').join(' / ')
                   : '—'}
               </TableCell>
               <TableCell>{formatCurrencyCents(row.amount_cents)}</TableCell>
@@ -197,11 +197,12 @@ export function ComprasTable({ rows, departments, collaborators, cards }: Compra
                 value={
                   selected.invoiceDocuments.length > 0
                     ? selected.invoiceDocuments
-                        .map((document) =>
-                          document.amountCents != null
-                            ? `${document.documentNumber} (${formatCurrencyCents(document.amountCents)})`
-                            : document.documentNumber,
-                        )
+                        .map((document) => {
+                          const number = document.documentNumber ?? 'Sem número';
+                          return document.amountCents != null
+                            ? `${number} (${formatCurrencyCents(document.amountCents)})`
+                            : number;
+                        })
                         .join(' / ')
                     : '—'
                 }
