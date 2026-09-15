@@ -18,9 +18,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjDigits}`);
-    if (!response.ok) {
+    const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjDigits}`, {
+      // Algumas APIs públicas bloqueiam requisições sem User-Agent (tratam como bot) —
+      // sem isso, a BrasilAPI estava recusando a chamada vinda do servidor da Vercel.
+      headers: { 'User-Agent': 'card-flow-app', Accept: 'application/json' },
+      cache: 'no-store',
+    });
+
+    if (response.status === 404) {
       return NextResponse.json({ error: 'CNPJ não encontrado no cadastro nacional.' }, { status: 404 });
+    }
+    if (!response.ok) {
+      console.error('lookup-cnpj: BrasilAPI respondeu', response.status, await response.text().catch(() => ''));
+      return NextResponse.json({ error: 'Cadastro nacional indisponível no momento, tente novamente.' }, { status: 502 });
     }
 
     const data: BrasilApiCnpjResponse = await response.json();
@@ -30,7 +40,8 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ companyName });
-  } catch {
+  } catch (error) {
+    console.error('lookup-cnpj: falha ao consultar BrasilAPI', error);
     return NextResponse.json({ error: 'Não foi possível consultar o CNPJ agora.' }, { status: 502 });
   }
 }
