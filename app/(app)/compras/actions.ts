@@ -265,8 +265,12 @@ export async function updatePurchase(formData: FormData) {
       upsert: true,
     });
 
-    if (uploadError) fail('Não foi possível enviar o comprovante.');
-    receiptPath = path;
+    // Se o upload falhar, mantém o comprovante anterior (ou nenhum) e segue salvando o
+    // resto da edição — igual ao cadastro novo; perder Site/Fornecedor/etc. só porque o
+    // anexo não subiu seria pior do que só pedir pra reenviar o comprovante depois.
+    if (!uploadError) {
+      receiptPath = path;
+    }
   }
 
   const { data: updated, error: updateError } = await supabase
